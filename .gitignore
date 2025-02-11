@@ -10,7 +10,8 @@ __pycache__/
 *.log
 *.sqlite3
 *.db
-
+# Игнорируем конфиг с токеном
+config.py
 # Конфиденциальные данные
 .env
 config.json
