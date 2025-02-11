@@ -1,10 +1,10 @@
 import asyncio
-from session import init_db  # Подключаем функцию для инициализации базы данных
+from session import init_db
 
 # Создание и инициализация базы данных
 async def create_tables():
     await init_db()
 
-# Запуск инициализации
 if __name__ == "__main__":
-    asyncio.run(create_tables())  # Используем asyncio.run для автоматического управления циклом событий
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(create_tables())

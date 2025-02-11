@@ -1,6 +1,6 @@
-from aiogram import Router, types
-from database.session import get_db
-from database.models import Quest
+from aiogram import Router, types,F
+from ..db.session import get_db
+from ..db.models import Quest
 
 router = Router()
 

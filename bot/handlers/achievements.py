@@ -18,3 +18,4 @@ async def get_achievements(message: types.Message):
         await message.answer(f"Ваши ачивки:\n{text}")
 
     session.close()
+

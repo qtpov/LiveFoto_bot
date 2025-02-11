@@ -1,9 +1,11 @@
+
 import logging
 import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
-from configurate import settings
-from handlers import start, profile, achievements, moderation, quests, games, knowledge_base
+from .configurate import settings
+
+from .handlers import start, profile, achievements, moderation, quests, games, knowledge_base
 from .db import init_db
 
 
