@@ -2,18 +2,9 @@ from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from database.db import add_user
-from config import API_TOKEN
-
+from ..db.crud import add_user
 
 router = Router()
-logging.basicConfig(level=logging.INFO)
-
-bot = Bot(token=API_TOKEN)
-
-dp = Dispatcher()
-dp.include_routers(rectangular.router, common.router, for_edit.router,polygonal.router,admin_panel.router)
-
 
 
 class Registration(StatesGroup):

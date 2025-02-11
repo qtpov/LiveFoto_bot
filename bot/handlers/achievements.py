@@ -1,6 +1,6 @@
 from aiogram import types
-from db.session import SessionLocal
-from db.models import Achievement, User
+from ..db.session import SessionLocal
+from ..db.models import Achievement, User
 
 
 async def get_achievements(message: types.Message):
