@@ -1,7 +1,7 @@
 from aiogram import Router, types
 from aiogram.filters import Command
-from database.session import get_db
-from database.models import User, Achievement
+#from bot.db.session import get_db
+from bot.db.models import User, Achievement
 
 router = Router()
 

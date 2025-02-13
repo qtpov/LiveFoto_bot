@@ -1,5 +1,5 @@
 import asyncio
-from session import init_db
+from .session import init_db
 
 # Создание и инициализация базы данных
 async def create_tables():
