@@ -1,4 +1,4 @@
-from aiogram import Router, types
+from aiogram import Router, types, F
 from aiogram.filters import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -15,28 +15,41 @@ router = Router()
 class ClearDBConfirmation(StatesGroup):
     confirm = State()
 
-
-
-@router.message(Command("profile"))
-async def profile(message: types.Message):
+# Общая функция для отображения профиля
+async def show_profile(user_id: int, message_or_callback: types.Message | types.CallbackQuery):
     async with SessionLocal() as session:
-        user = await session.execute(select(User).filter(User.telegram_id == message.from_user.id))
+        user = await session.execute(select(User).filter(User.telegram_id == user_id))
         user = user.scalars().first()
 
         if not user:
-            await message.answer("Ты ещё не зарегистрирован! Напиши /start.")
+            await message_or_callback.answer("Ты ещё не зарегистрирован! Напиши /start.")
             return
 
         last_achievement = await session.execute(select(Achievement).filter_by(user_id=user.id).order_by(Achievement.id.desc()))
         last_achievement = last_achievement.scalars().first()
         achievement_text = last_achievement.name if last_achievement else "Нет ачивок"
 
-        text =(f'🧑‍💻 *Профиль героя*'
-               f'\n\n👤 ФИО: {user.full_name}'
-               f'\n🎂 Возраст: {user.age}'
-               f'\n🏆 Последняя ачивка: {achievement_text}')
+        text = (
+            f'🧑‍💻 *Профиль героя*'
+            f'\n\n👤 ФИО: {user.full_name}'
+            f'\n🎂 Возраст: {user.age}'
+            f'\n🏆 Последняя ачивка: {achievement_text}'
+        )
 
-    await message.answer(text, parse_mode="Markdown", reply_markup=profile_keyboard())
+    if isinstance(message_or_callback, types.CallbackQuery):
+        await message_or_callback.message.edit_text(text, parse_mode="Markdown", reply_markup=profile_keyboard())
+    else:
+        await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=profile_keyboard())
+
+# Обработчик для команды /profile
+@router.message(Command("profile"))
+async def profile_command(message: types.Message):
+    await show_profile(message.from_user.id, message)
+
+# Обработчик для callback с data="profile"
+@router.callback_query(F.data == "profile")
+async def profile_callback(callback: types.CallbackQuery):
+    await show_profile(callback.from_user.id, callback)
 
 # Команда для очистки базы данных
 @router.message(Command("cleardb"))

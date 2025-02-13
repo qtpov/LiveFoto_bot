@@ -22,3 +22,4 @@ async def give_achievement(session: AsyncSession, user_id: int, name: str, descr
     achievement = Achievement(user_id=user_id, name=name, description=description)
     session.add(achievement)
     await session.commit()
+
