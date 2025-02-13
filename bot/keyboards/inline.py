@@ -7,3 +7,9 @@ def profile_keyboard():
         [InlineKeyboardButton(text="Ачивки", callback_data="achievements")],
         [InlineKeyboardButton(text="База знаний", callback_data="knowledge")]
     ])
+
+def gender_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Mужской", callback_data="Male")],
+        [InlineKeyboardButton(text="Женский", callback_data="Female")]
+    ])

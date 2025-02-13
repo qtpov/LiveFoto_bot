@@ -1,33 +1,67 @@
 from aiogram import Router, types
 from aiogram.filters import Command
-#from bot.db.session import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from bot.db.models import User, Achievement
+from bot.db.session import SessionLocal
+from bot.db.models import User, Quest, Achievement, Moderation
+from sqlalchemy import delete
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from bot.keyboards.inline import profile_keyboard
 
 router = Router()
+
+class ClearDBConfirmation(StatesGroup):
+    confirm = State()
+
 
 
 @router.message(Command("profile"))
 async def profile(message: types.Message):
-    db = get_db()
-    user = db.query(User).filter_by(telegram_id=message.from_user.id).first()
-    if not user:
-        await message.answer("Ты ещё не зарегистрирован! Напиши /start.")
+    async with SessionLocal() as session:
+        user = await session.execute(select(User).filter(User.telegram_id == message.from_user.id))
+        user = user.scalars().first()
+
+        if not user:
+            await message.answer("Ты ещё не зарегистрирован! Напиши /start.")
+            return
+
+        last_achievement = await session.execute(select(Achievement).filter_by(user_id=user.id).order_by(Achievement.id.desc()))
+        last_achievement = last_achievement.scalars().first()
+        achievement_text = last_achievement.name if last_achievement else "Нет ачивок"
+
+        text =(f'🧑‍💻 *Профиль героя*'
+               f'\n\n👤 ФИО: {user.full_name}'
+               f'\n🎂 Возраст: {user.age}'
+               f'\n🏆 Последняя ачивка: {achievement_text}')
+
+    await message.answer(text, parse_mode="Markdown", reply_markup=profile_keyboard())
+
+# Команда для очистки базы данных
+@router.message(Command("cleardb"))
+async def clear_db(message: types.Message, state: FSMContext):
+    if message.from_user.id != 693131022:
+        await message.answer("У вас нет прав для выполнения этой команды.")
         return
 
-    last_achievement = db.query(Achievement).filter_by(user_id=user.id).order_by(Achievement.id.desc()).first()
-    achievement_text = last_achievement.title if last_achievement else "Нет ачивок"
+    await message.answer("Вы уверены, что хотите очистить базу данных? (да/нет)")
+    await state.set_state(ClearDBConfirmation.confirm)
 
-    text = f"""
-🧑‍💻 *Профиль героя*  
-👤 ФИО: {user.fio}  
-🎂 Возраст: {user.age}  
-🏆 Последняя ачивка: {achievement_text}  
-"""
-    await message.answer(text, parse_mode="Markdown", reply_markup=types.ReplyKeyboardMarkup(
-        keyboard=[
-            [types.KeyboardButton(text="Квесты")],
-            [types.KeyboardButton(text="Мини-игры")],
-            [types.KeyboardButton(text="Ачивки")],
-            [types.KeyboardButton(text="База знаний")]
-        ], resize_keyboard=True
-    ))
+@router.message(ClearDBConfirmation.confirm)
+async def confirm_clear_db(message: types.Message, state: FSMContext):
+    if message.text.lower() == "да":
+        async with SessionLocal() as session:
+            try:
+                await session.execute(delete(User))
+                await session.execute(delete(Quest))
+                await session.execute(delete(Achievement))
+                await session.execute(delete(Moderation))
+                await session.commit()
+                await message.answer("База данных успешно очищена.")
+            except Exception as e:
+                await session.rollback()
+                await message.answer(f"Произошла ошибка при очистке базы данных: {e}")
+    else:
+        await message.answer("Очистка базы данных отменена.")
+    await state.clear()

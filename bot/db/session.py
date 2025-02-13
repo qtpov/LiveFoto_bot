@@ -15,7 +15,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, clas
 
 Base = declarative_base()
 
-
 # Функция инициализации базы данных (создание таблиц)
 async def init_db():
     from .models import User, Quest, Achievement, Moderation
