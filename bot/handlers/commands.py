@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.db.crud import add_user
 from bot.db.session import SessionLocal
 from bot.db.models import Task
-from bot.keyboards.inline import gender_keyboard, form_keyboard, go_profile_keyboard
+from bot.keyboards.inline import gender_keyboard, form_keyboard, go_profile_keyboard,cancel_keyboard
 import logging
 
 router = Router()
@@ -148,3 +148,78 @@ async def show_tasks(message: types.Message):
                 f"Варианты: {', '.join(task.options)}\n"
                 f"Правильный ответ: {task.correct_answer}"
             )
+
+class EditTaskStates(StatesGroup):
+    waiting_for_task_id = State()
+    waiting_for_field = State()
+    waiting_for_new_value = State()
+
+@router.message(Command("edit_task"))
+async def start_edit_task(message: types.Message, state: FSMContext):
+    if message.from_user.id != 693131022:
+        await message.answer("У вас нет прав для выполнения этой команды.")
+        return
+
+    await message.answer("Введите ID задания, которое хотите отредактировать:")
+    await state.set_state(EditTaskStates.waiting_for_task_id)
+
+@router.message(EditTaskStates.waiting_for_task_id)
+async def process_task_id(message: types.Message, state: FSMContext):
+    try:
+        task_id = int(message.text)
+        await state.update_data(task_id=task_id)
+        await message.answer(
+            "Какое поле вы хотите отредактировать? (title, description, options, correct_answer)",
+            reply_markup=cancel_keyboard()
+        )
+        await state.set_state(EditTaskStates.waiting_for_field)
+    except ValueError:
+        await message.answer("Пожалуйста, введите корректный ID задания (число).")
+
+@router.message(EditTaskStates.waiting_for_field)
+async def process_field(message: types.Message, state: FSMContext):
+    valid_fields = ["title", "description", "options", "correct_answer"]
+    field = message.text.strip().lower()
+
+    if field in valid_fields:
+        await state.update_data(field=field)
+        await message.answer(f"Введите новое значение для поля '{field}':")
+        await state.set_state(EditTaskStates.waiting_for_new_value)
+    else:
+        await message.answer("Некорректное поле. Выберите одно из: title, description, options, correct_answer.")
+
+@router.message(EditTaskStates.waiting_for_new_value)
+async def process_new_value(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    task_id = data["task_id"]
+    field = data["field"]
+    new_value = message.text
+
+    async with SessionLocal() as session:
+        task = await session.execute(select(Task).filter(Task.id == task_id))
+        task = task.scalars().first()
+
+        if not task:
+            await message.answer("Задание с таким ID не найдено.")
+            await state.clear()
+            return
+
+        if field == "options":
+            new_value = new_value.split(",")  # Преобразуем строку в массив
+        setattr(task, field, new_value)  # Обновляем поле
+
+        await session.commit()
+        await session.refresh(task)
+
+        await message.answer(f"Задание успешно обновлено!\nНовые данные:\n"
+                                 f"Название: {task.title}\n"
+                                 f"Описание: {task.description}\n"
+                                 f"Варианты: {', '.join(task.options)}\n"
+                                 f"Правильный ответ: {task.correct_answer}")
+        await state.clear()
+
+@router.callback_query(F.data == "cancel_edit")
+async def cancel_edit(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text("Редактирование отменено.")
+    await callback.answer()

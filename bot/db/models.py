@@ -26,13 +26,16 @@ class User(Base):
     level = Column(Integer, default=1)
     last_achievement = Column(String, default="")
     day = Column(Integer, default=1)
+
+
 class UserResult(Base):
     __tablename__ = "user_results"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))  # Связь с User
     task_id = Column(Integer, ForeignKey("tasks.id"))  # Связь с Task
-    is_correct = Column(Boolean, default=False)
+    state = Column(String, nullable=False)
     attempt = Column(Integer, default=1)
+    result = Column(Integer, default=1) #можно сделать процент верных ответов из всех
 
 class Achievement(Base):
     __tablename__ = "achievements"
@@ -45,7 +48,7 @@ class Achievement(Base):
 class Moderation(Base):
     __tablename__ = "moderation"
     id = Column(Integer, primary_key=True)
-    task_id = Column(Integer, ForeignKey("task.id"))  # Связь с Quest
+    task_id = Column(Integer, ForeignKey("tasks.id"))  # Связь с task
     status = Column(String, default="pending")  # approved, rejected
-    moderator_id = Column(Integer)  # ID модератора
-    timestamp = Column(DateTime, default=func.now())
+    user_id = Column(Integer,ForeignKey("users.id"))  # ID юзера
+    #timestamp = Column(DateTime, default=func.now())

@@ -79,3 +79,10 @@ def create_inline_keyboard_2(data, callback_prefix="task_"):
     # Создаем клавиатуру с кнопками
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard
+
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+def cancel_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="❌ Отмена", callback_data="cancel_edit")
+    return builder.as_markup()
