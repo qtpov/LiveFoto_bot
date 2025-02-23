@@ -1,6 +1,20 @@
-from sqlalchemy import Column,BigInteger, Integer, String, ForeignKey, Boolean, DateTime, func
+from sqlalchemy import Column, BigInteger, Integer, String, ForeignKey, Boolean, DateTime, func, ARRAY
 from sqlalchemy.orm import relationship
 from .session import Base
+#
+# class Quest(Base):
+#     __tablename__ = "quests"
+#     id = Column(Integer, primary_key=True)
+#     title = Column(String, nullable=False)
+#     description = Column(String)
+
+class Task(Base):
+    __tablename__ = "tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)  # Название задания
+    description = Column(String)  # Текст задания
+    options = Column(ARRAY(String))  # Массив строк с вариантами ответов
+    correct_answer = Column(String)  # Правильный ответ
 
 class User(Base):
     __tablename__ = "users"
@@ -11,28 +25,27 @@ class User(Base):
     gender = Column(String, nullable=False)
     level = Column(Integer, default=1)
     last_achievement = Column(String, default="")
-
-class Quest(Base):
-    __tablename__ = "quests"
+    day = Column(Integer, default=1)
+class UserResult(Base):
+    __tablename__ = "user_results"
     id = Column(Integer, primary_key=True)
-    title = Column(String, nullable=False)
-    description = Column(String, nullable=False)
-    status = Column(String, default="pending")  # pending, on_review, completed, rejected
-    user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User")
+    user_id = Column(Integer, ForeignKey("users.id"))  # Связь с User
+    task_id = Column(Integer, ForeignKey("tasks.id"))  # Связь с Task
+    is_correct = Column(Boolean, default=False)
+    attempt = Column(Integer, default=1)
 
 class Achievement(Base):
     __tablename__ = "achievements"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))  # Связь с User
     user = relationship("User")
 
 class Moderation(Base):
     __tablename__ = "moderation"
     id = Column(Integer, primary_key=True)
-    quest_id = Column(Integer, ForeignKey("quests.id"))
+    task_id = Column(Integer, ForeignKey("task.id"))  # Связь с Quest
     status = Column(String, default="pending")  # approved, rejected
-    moderator_id = Column(Integer)
+    moderator_id = Column(Integer)  # ID модератора
     timestamp = Column(DateTime, default=func.now())

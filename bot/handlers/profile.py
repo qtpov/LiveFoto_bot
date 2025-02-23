@@ -1,10 +1,8 @@
 from aiogram import Router, types, F
 from aiogram.filters import Command
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from bot.db.models import User, Achievement
 from bot.db.session import SessionLocal
-from bot.db.models import User, Quest, Achievement, Moderation
+from bot.db.models import User, Achievement, Moderation #Quest
 from sqlalchemy import delete
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -34,6 +32,7 @@ async def show_profile(user_id: int, message_or_callback: types.Message | types.
             f'\n\n👤 ФИО: {user.full_name}'
             f'\n🎂 Возраст: {user.age}'
             f'\n🏆 Последняя ачивка: {achievement_text}'
+            f'\n День: {user.day}'
         )
 
     if isinstance(message_or_callback, types.CallbackQuery):
@@ -67,7 +66,6 @@ async def confirm_clear_db(message: types.Message, state: FSMContext):
         async with SessionLocal() as session:
             try:
                 await session.execute(delete(User))
-                await session.execute(delete(Quest))
                 await session.execute(delete(Achievement))
                 await session.execute(delete(Moderation))
                 await session.commit()

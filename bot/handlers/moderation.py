@@ -1,11 +1,11 @@
 from aiogram import types
 from ..db.session import SessionLocal
-from ..db.models import Quest, Moderation
+from ..db.models import  Moderation, Task
 
 
 async def review_quest(call: types.CallbackQuery, quest_id: int, approved: bool):
     session = SessionLocal()
-    quest = session.query(Quest).filter_by(id=quest_id).first()
+    quest = session.query(Task).filter_by(id=quest_id).first()
     if not quest:
         await call.message.answer("Задание не найдено.")
         return

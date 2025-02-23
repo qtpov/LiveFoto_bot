@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
-from .models import User, Quest, Achievement, Moderation
+from .models import User, Achievement, Moderation, Task
 
 async def get_user_by_tg_id(session: AsyncSession, telegram_id: int):
     result = await session.execute(select(User).filter(User.telegram_id == telegram_id))
@@ -23,3 +23,8 @@ async def give_achievement(session: AsyncSession, user_id: int, name: str, descr
     session.add(achievement)
     await session.commit()
 
+
+async def get_tasks(db: AsyncSession):
+    result = await db.execute(select(Task))
+    tasks = result.scalars().all()
+    return tasks
