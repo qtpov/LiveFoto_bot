@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from .configurate import settings
 
-from .handlers import commands, profile, achievements, moderation, quests, games, knowledge_base
+from .handlers import commands, profile, achievements, moderation, quests, games, knowledge_base, registration
 from .db.init_db import init_db
 
 
@@ -19,11 +19,12 @@ dp = Dispatcher()
 # Регистрируем хендлеры
 dp.include_router(commands.router)
 dp.include_router(profile.router)
-# dp.include_router(achievements.router)
+dp.include_router(achievements.router)
 # dp.include_router(moderation.router)
 dp.include_router(quests.router)
-# dp.include_router(games.router)
-# dp.include_router(knowledge_base.router)
+dp.include_router(games.router)
+dp.include_router(knowledge_base.router)
+dp.include_router(registration.router)
 
 
 async def main():
@@ -34,7 +35,6 @@ async def main():
     await bot.set_my_commands([
         BotCommand(command="start", description="Запуск бота"),
         BotCommand(command="profile", description="Профиль"),
-        BotCommand(command="achievements", description="Ачивки"),
         BotCommand(command="cleardb", description="чистка бд"),
     ])
 
