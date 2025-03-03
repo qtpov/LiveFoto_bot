@@ -36,6 +36,8 @@ async def main():
         BotCommand(command="start", description="Запуск бота"),
         BotCommand(command="profile", description="Профиль"),
         BotCommand(command="cleardb", description="чистка бд"),
+        BotCommand(command="add_quests", description="добавить квест"),
+        BotCommand(command="edit_task", description="редактировать квест"),
     ])
 
     await dp.start_polling(bot)

@@ -4,14 +4,16 @@ from aiogram.types import KeyboardButton
 from aiogram.filters import Command
 from bot.db.models import Task, UserResult
 from bot.db.crud import get_tasks, get_user_results
-from aiogram.types import FSInputFile
+from aiogram.types import FSInputFile, InputMediaPhoto
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from bot.keyboards.inline import create_inline_keyboard, create_inline_keyboard_2, cancel_keyboard
 from sqlalchemy.future import select
 from bot.db.session import SessionLocal
+from pathlib import Path
 from sqlalchemy import select
+import os
 router = Router()
 
 # Клавиатура для меню
@@ -29,10 +31,11 @@ class TaskCreation(StatesGroup):
     correct_answer = State()
     day = State()
     quest_id = State()
+    photo = State()
 
 
 
-@router.message(Command("quests"))
+@router.message(Command("add_quests"))
 async def start(message: types.Message):
     await message.answer("Выбери действие:", reply_markup=make_keyboard())
 
@@ -79,9 +82,15 @@ async def process_task_day(message: types.Message, state: FSMContext):
     await state.set_state(TaskCreation.quest_id)
 
 @router.message(TaskCreation.quest_id)
+async def process_task_day(message: types.Message, state: FSMContext):
+    await state.update_data(quest_id=int(message.text))
+    await message.answer("Отправьте путь к фото:")
+    await state.set_state(TaskCreation.photo)
+
+@router.message(TaskCreation.photo)
 async def process_task_correct_answer(message: types.Message, state: FSMContext):
     async with SessionLocal() as db:
-        quest_id = int(message.text)
+        photo = message.text
         data = await state.get_data()
 
         task = Task(
@@ -90,7 +99,9 @@ async def process_task_correct_answer(message: types.Message, state: FSMContext)
             options=data["options"],
             correct_answer=data["correct_answer"],
             day = data['day'],
-            quest_id = quest_id
+            quest_id = data['quest_id'],
+            photo = photo
+
         )
         db.add(task)
         await db.commit()
@@ -115,8 +126,10 @@ async def show_tasks(message: types.Message):
                 f"Название: {task.title}\n"
                 f"Описание: {task.description}\n"
                 f"Варианты: {', '.join(task.options)}\n"
-                f"Правильный ответ: {task.correct_answer}"
-            )
+                f"Правильный ответ: {task.correct_answer}\n"
+                f"День: {task.day}\n"
+                f"Номер квеста: {task.quest_id}\n"
+                f"Сылка на фото: {task.photo}\n")
 
 class EditTaskStates(StatesGroup):
     waiting_for_task_id = State()
@@ -138,7 +151,7 @@ async def process_task_id(message: types.Message, state: FSMContext):
         task_id = int(message.text)
         await state.update_data(task_id=task_id)
         await message.answer(
-            "Какое поле вы хотите отредактировать? (title, description, options, correct_answer)",
+            "Какое поле вы хотите отредактировать? (title, description, options, correct_answer, day, quest_id, photo)",
             reply_markup=cancel_keyboard()
         )
         await state.set_state(EditTaskStates.waiting_for_field)
@@ -147,7 +160,7 @@ async def process_task_id(message: types.Message, state: FSMContext):
 
 @router.message(EditTaskStates.waiting_for_field)
 async def process_field(message: types.Message, state: FSMContext):
-    valid_fields = ["title", "description", "options", "correct_answer"]
+    valid_fields = ["title", "description", "options", "correct_answer","day", "quest_id", "photo"]
     field = message.text.strip().lower()
 
     if field in valid_fields:
@@ -155,7 +168,7 @@ async def process_field(message: types.Message, state: FSMContext):
         await message.answer(f"Введите новое значение для поля '{field}':")
         await state.set_state(EditTaskStates.waiting_for_new_value)
     else:
-        await message.answer("Некорректное поле. Выберите одно из: title, description, options, correct_answer.")
+        await message.answer("Некорректное поле. Выберите одно из: title, description, options, correct_answer, day, quest_id, photo.")
 
 @router.message(EditTaskStates.waiting_for_new_value)
 async def process_new_value(message: types.Message, state: FSMContext):
@@ -175,6 +188,8 @@ async def process_new_value(message: types.Message, state: FSMContext):
 
         if field == "options":
             new_value = new_value.split(",")  # Преобразуем строку в массив
+        if field in ["day", "quest_id"]:
+            new_value = int(new_value)
         setattr(task, field, new_value)  # Обновляем поле
 
         await session.commit()
@@ -184,7 +199,10 @@ async def process_new_value(message: types.Message, state: FSMContext):
                                  f"Название: {task.title}\n"
                                  f"Описание: {task.description}\n"
                                  f"Варианты: {', '.join(task.options)}\n"
-                                 f"Правильный ответ: {task.correct_answer}")
+                                 f"Правильный ответ: {task.correct_answer}\n"
+                                 f"День: {task.day}\n"
+                                 f"Номер квеста: {task.quest_id}\n"
+                                 f"Сылка на фото: {task.photo}\n")
         await state.clear()
 
 @router.callback_query(F.data == "cancel_edit")
@@ -257,10 +275,14 @@ async def show_tasks(callback: types.CallbackQuery):
 
         await callback.message.answer(text, reply_markup=go_quests_keyboard())
     await callback.answer()
+# Базовый путь к проекту
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 @router.callback_query(F.data == 'start_quest')
 async def process_task_callback(callback: types.CallbackQuery):
-    # Определяем, с какого квеста начинать (например, первый квест на текущий день)
+
+
+    # Получаем задачу из базы данных
     current_day = get_current_day()
     async with SessionLocal() as session:
         stmt = select(Task).where(Task.day == current_day).order_by(Task.quest_id, Task.id).limit(1)
@@ -271,9 +293,21 @@ async def process_task_callback(callback: types.CallbackQuery):
             await callback.message.answer("Заданий не найдено")
             return
 
-        # Отправляем первое задание квеста
-        await callback.message.edit_text(
-            f"{task.title}\n{task.description}",
+        # Формируем абсолютный путь к файлу (с учетом папки handlers)
+        relative_path = f"handlers/{task.photo}"
+        photo_path = BASE_DIR / relative_path
+
+        # Проверяем, существует ли файл
+        if not photo_path.exists():
+            await callback.message.answer("Файл с изображением не найден.")
+            return
+
+        # Отправляем фото
+        await callback.message.delete()
+        photo = FSInputFile(str(photo_path))  # Преобразуем Path в строку
+        await callback.message.answer_photo(
+            photo,
+            caption=f"{task.title}\n{task.description}",
             reply_markup=create_inline_keyboard_2(task.options, callback_prefix=f"qw_{task.id}")
         )
 
@@ -303,9 +337,13 @@ async def process_task1_callback(callback: types.CallbackQuery):
             next_task = next_task_result.scalars().first()
 
             if next_task:
+                # Формируем абсолютный путь к файлу (с учетом папки handlers)
+                relative_path = f"handlers/{next_task.photo}"
+                photo_path = BASE_DIR / relative_path
                 # Если есть следующее задание в текущем квесте, отправляем его
-                await callback.message.edit_text(
-                    f"{next_task.title}\n{next_task.description}",
+                photo = InputMediaPhoto(media = FSInputFile(str(photo_path)))
+                await callback.message.edit_media(photo)
+                await callback.message.edit_caption(caption=f"{next_task.title}\n{next_task.description}",
                     reply_markup=create_inline_keyboard_2(next_task.options, callback_prefix=f"qw_{next_task.id}")
                 )
             else:
@@ -316,17 +354,22 @@ async def process_task1_callback(callback: types.CallbackQuery):
                 next_quest = next_quest_result.scalars().first()
 
                 if next_quest:
-                    # Если есть следующий квест, отправляем его первое задание
-                    await callback.message.edit_text(
-                        f"Поздравляем! Вы завершили квест '{task.quest_id}'.\n"
+                    # Формируем абсолютный путь к файлу (с учетом папки handlers)
+                    relative_path = f"handlers/{next_quest.photo}"
+                    photo_path = BASE_DIR / relative_path
+                    # Если есть следующее задание в текущем квесте, отправляем его
+                    photo = InputMediaPhoto(media=FSInputFile(str(photo_path)))
+                    await callback.message.edit_media(media = photo)
+                    await callback.message.edit_caption(caption = f"Поздравляем! Вы завершили квест '{task.quest_id}'.\n"
                         f"Начинаем следующий квест: '{next_quest.quest_id}'.\n"
                         f"{next_quest.title}\n{next_quest.description}",
                         reply_markup=create_inline_keyboard_2(next_quest.options, callback_prefix=f"qw_{next_quest.id}")
                     )
                 else:
+                    await callback.message.delete()
                     # Если квестов больше нет, сообщаем об этом
-                    await callback.message.edit_text("Поздравляем! Вы прошли все квесты на сегодня.")
+                    await callback.message.answer("Поздравляем! Вы прошли все квесты на сегодня.")
         else:
-            await callback.message.edit_text('Ответ неверный. Попробуйте снова.')
+            await callback.answer('Ответ неверный.')
 
     await callback.answer()
