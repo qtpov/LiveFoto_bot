@@ -11,11 +11,13 @@ from .session import Base
 class Task(Base):
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)  # Название задания
-    description = Column(String)  # Текст задания
-    options = Column(ARRAY(String))  # Массив строк с вариантами ответов
-    correct_answer = Column(String)  # Правильный ответ
-
+    title = Column(String, index=True)
+    description = Column(String)
+    options = Column(ARRAY(String))
+    correct_answer = Column(String)
+    day = Column(Integer)
+    quest_id = Column(Integer)
+    photo = Column(String, nullable=True)  # Новое поле для хранения ссылки на фото
 class UserProfile(Base):
     __tablename__ = "user_profiles"
     id = Column(Integer, primary_key=True)

@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
-from .models import User, Achievement, Moderation, Task, UserProfile
+from .models import User, Achievement, Moderation, Task, UserProfile, UserResult
 
 async def get_user_by_tg_id(session: AsyncSession, telegram_id: int):
     result = await session.execute(select(User).filter(User.telegram_id == telegram_id))
@@ -76,7 +76,22 @@ async def give_achievement(session: AsyncSession, user_id: int, name: str, descr
     await session.commit()
 
 
-async def get_tasks(db: AsyncSession):
-    result = await db.execute(select(Task))
-    tasks = result.scalars().all()
-    return tasks
+async def get_tasks(db: AsyncSession, day: int):
+    """
+    Получает задачи, сгруппированные по quest_id, для указанного дня.
+    """
+    stmt = (
+        select(Task.quest_id, Task.title)
+        .where(Task.day == day)  # Фильтруем по дню
+        .group_by(Task.quest_id, Task.title)  # Группируем по quest_id и title
+    )
+    result = await db.execute(stmt)
+    return result.all()
+
+async def get_user_results(db: AsyncSession, user_id: int):
+    """
+    Получает результаты пользователя для определения статуса квестов.
+    """
+    stmt = select(UserResult).where(UserResult.user_id == user_id)
+    result = await db.execute(stmt)
+    return result.scalars().all()

@@ -2,13 +2,12 @@ from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from sqlalchemy.future import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from bot.db.session import SessionLocal
 from bot.db.crud import add_user
+from bot.keyboards.inline import go_profile_keyboard
 import logging
 from datetime import datetime
-from bot.db.models import UserProfile
+import re
 
 router = Router()
 
@@ -40,13 +39,16 @@ class ProfileForm(StatesGroup):
 # Начало заполнения анкеты
 @router.callback_query(F.data == "start_profile_form")
 async def start_profile_form(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer("Пожалуйста, введите ваше ФИО:")
+    await callback.message.edit_text("Пожалуйста, введите ваше ФИО:")
     await state.set_state(ProfileForm.full_name)
     await callback.answer()
 
 # Обработка ФИО
 @router.message(ProfileForm.full_name)
 async def process_full_name(message: types.Message, state: FSMContext):
+    if not re.match(r'^[А-Яа-яЁё\s]+$', message.text):
+        await message.answer("Ошибка: ФИО должно содержать только кириллицу и пробелы.")
+        return
     await state.update_data(full_name=message.text)
     await message.answer("Введите вашу дату рождения (в формате ДД.ММ.ГГГГ):")
     await state.set_state(ProfileForm.birth_date)
@@ -55,18 +57,19 @@ async def process_full_name(message: types.Message, state: FSMContext):
 @router.message(ProfileForm.birth_date)
 async def process_birth_date(message: types.Message, state: FSMContext):
     try:
-        # Проверяем формат даты
-        birth_date = datetime.strptime(message.text, "%d.%m.%Y")  # Формат ДД.ММ.ГГГГ
-        await state.update_data(birth_date=message.text)  # Сохраняем дату рождения в состоянии
-        await message.answer("Введите ваш номер телефона::")
+        birth_date = datetime.strptime(message.text, "%d.%m.%Y")
+        await state.update_data(birth_date=message.text)
+        await message.answer("Введите ваш номер телефона (в формате +7XXXXXXXXXX):")
         await state.set_state(ProfileForm.phone)
     except ValueError:
         await message.answer("Ошибка: Неверный формат даты рождения. Используйте формат ДД.ММ.ГГГГ.")
 
-
 # Обработка номера телефона
 @router.message(ProfileForm.phone)
 async def process_phone(message: types.Message, state: FSMContext):
+    if not re.match(r'^\+7\d{10}$', message.text):
+        await message.answer("Ошибка: Неверный формат номера телефона. Используйте формат +7XXXXXXXXXX.")
+        return
     await state.update_data(phone=message.text)
     await message.answer("Введите ваш фактический адрес проживания:")
     await state.set_state(ProfileForm.address)
@@ -88,6 +91,9 @@ async def process_vacancy(message: types.Message, state: FSMContext):
 # Обработка желаемой зарплаты
 @router.message(ProfileForm.desired_salary)
 async def process_desired_salary(message: types.Message, state: FSMContext):
+    if not re.match(r'^\d+$', message.text):
+        await message.answer("Ошибка: Зарплата должна быть числом.")
+        return
     await state.update_data(desired_salary=message.text)
     await message.answer("Ваше семейное положение:")
     await state.set_state(ProfileForm.marital_status)
@@ -96,12 +102,15 @@ async def process_desired_salary(message: types.Message, state: FSMContext):
 @router.message(ProfileForm.marital_status)
 async def process_marital_status(message: types.Message, state: FSMContext):
     await state.update_data(marital_status=message.text)
-    await message.answer("Укажите возраст ваших детей (если есть):")
+    await message.answer("Укажите возраст ваших детей (если есть, в формате числа):")
     await state.set_state(ProfileForm.children)
 
 # Обработка информации о детях
 @router.message(ProfileForm.children)
 async def process_children(message: types.Message, state: FSMContext):
+    if message.text and not re.match(r'^\d+$', message.text):
+        await message.answer("Ошибка: Возраст детей должен быть числом.")
+        return
     await state.update_data(children=message.text)
     await message.answer("Укажите ваше образование (ВУЗ, специальность):")
     await state.set_state(ProfileForm.education)
@@ -145,36 +154,76 @@ async def process_criminal_record(message: types.Message, state: FSMContext):
 @router.message(ProfileForm.preferred_schedule)
 async def process_preferred_schedule(message: types.Message, state: FSMContext):
     await state.update_data(preferred_schedule=message.text)
-    await message.answer("Есть ли у вас медицинская книжка (действующая или нет)?")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Да", callback_data="medical_book_yes")],
+        [InlineKeyboardButton(text="Нет", callback_data="medical_book_no")]
+    ])
+    await message.answer("Есть ли у вас медицинская книжка (действующая или нет)?", reply_markup=keyboard)
     await state.set_state(ProfileForm.medical_book)
 
 # Обработка медицинской книжки
-@router.message(ProfileForm.medical_book)
-async def process_medical_book(message: types.Message, state: FSMContext):
-    await state.update_data(medical_book=message.text)
-    await message.answer("Ваше отношение к воинской обязанности (служил, запас и т.п.):")
+@router.callback_query(ProfileForm.medical_book, F.data.in_(["medical_book_yes", "medical_book_no"]))
+async def process_medical_book(callback: types.CallbackQuery, state: FSMContext):
+    medical_book = "Да" if callback.data == "medical_book_yes" else "Нет"
+    await state.update_data(medical_book=medical_book)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Служил", callback_data="military_served")],
+        [InlineKeyboardButton(text="Не служил", callback_data="military_not_served")],
+        [InlineKeyboardButton(text="Запас", callback_data="military_reserve")],
+        [InlineKeyboardButton(text="Не имею отношения", callback_data="military_no_relation")]
+    ])
+    await callback.message.edit_text("Ваше отношение к воинской обязанности:", reply_markup=keyboard)
     await state.set_state(ProfileForm.military_service)
+    await callback.answer()
 
 # Обработка воинской обязанности
-@router.message(ProfileForm.military_service)
-async def process_military_service(message: types.Message, state: FSMContext):
-    await state.update_data(military_service=message.text)
-    await message.answer("Когда вы готовы приступить к работе?")
+@router.callback_query(ProfileForm.military_service, F.data.in_(["military_served", "military_not_served", "military_reserve", "military_no_relation"]))
+async def process_military_service(callback: types.CallbackQuery, state: FSMContext):
+    military_service = {
+        "military_served": "Служил",
+        "military_not_served": "Не служил",
+        "military_reserve": "Запас",
+        "military_no_relation": "Не имею отношения"
+    }[callback.data]
+    await state.update_data(military_service=military_service)
+    await callback.message.edit_text("Когда вы готовы приступить к работе? (в формате ДД.ММ.ГГГГ):")
     await state.set_state(ProfileForm.start_date)
+    await callback.answer()
 
 # Обработка даты начала работы
 @router.message(ProfileForm.start_date)
 async def process_start_date(message: types.Message, state: FSMContext):
-    await state.update_data(start_date=message.text)
-    await message.answer("Откуда вы узнали о вакансии? (HH.ru, Avito, Работа.ру, ВК, Друзья/родственники, Другое)")
-    await state.set_state(ProfileForm.vacancy_source)
+    try:
+        start_date = datetime.strptime(message.text, "%d.%m.%Y")
+        await state.update_data(start_date=message.text)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="HH.ru", callback_data="vacancy_source_hh")],
+            [InlineKeyboardButton(text="Avito", callback_data="vacancy_source_avito")],
+            [InlineKeyboardButton(text="Работа.ру", callback_data="vacancy_source_rabota")],
+            [InlineKeyboardButton(text="ВК", callback_data="vacancy_source_vk")],
+            [InlineKeyboardButton(text="Друзья/родственники", callback_data="vacancy_source_friends")],
+            [InlineKeyboardButton(text="Другое", callback_data="vacancy_source_other")]
+        ])
+        await message.answer("Откуда вы узнали о вакансии?", reply_markup=keyboard)
+        await state.set_state(ProfileForm.vacancy_source)
+    except ValueError:
+        await message.answer("Ошибка: Неверный формат даты. Используйте формат ДД.ММ.ГГГГ.")
 
 # Обработка источника вакансии
-@router.message(ProfileForm.vacancy_source)
-async def process_vacancy_source(message: types.Message, state: FSMContext):
-    await state.update_data(vacancy_source=message.text)
-    await message.answer("Укажите контактные данные близких родственников (ФИО, степень родства, дата рождения, телефон):")
+@router.callback_query(ProfileForm.vacancy_source, F.data.in_(["vacancy_source_hh", "vacancy_source_avito", "vacancy_source_rabota", "vacancy_source_vk", "vacancy_source_friends", "vacancy_source_other"]))
+async def process_vacancy_source(callback: types.CallbackQuery, state: FSMContext):
+    vacancy_source = {
+        "vacancy_source_hh": "HH.ru",
+        "vacancy_source_avito": "Avito",
+        "vacancy_source_rabota": "Работа.ру",
+        "vacancy_source_vk": "ВК",
+        "vacancy_source_friends": "Друзья/родственники",
+        "vacancy_source_other": "Другое"
+    }[callback.data]
+    await state.update_data(vacancy_source=vacancy_source)
+    await callback.message.edit_text("Укажите контактные данные близких родственников (ФИО, степень родства, дата рождения, телефон):")
     await state.set_state(ProfileForm.relatives_contacts)
+    await callback.answer()
 
 # Обработка контактов родственников
 @router.message(ProfileForm.relatives_contacts)
@@ -187,91 +236,95 @@ async def process_relatives_contacts(message: types.Message, state: FSMContext):
 @router.message(ProfileForm.friends_contacts)
 async def process_friends_contacts(message: types.Message, state: FSMContext):
     await state.update_data(friends_contacts=message.text)
-    await message.answer("Пожалуйста, укажите ваш пол (Мужской/Женский):")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Мужской", callback_data="gender_male")],
+        [InlineKeyboardButton(text="Женский", callback_data="gender_female")]
+    ])
+    await message.answer("Пожалуйста, укажите ваш пол:", reply_markup=keyboard)
     await state.set_state(ProfileForm.gender)
 
-
-@router.message(ProfileForm.gender)
-async def process_gender(message: types.Message, state: FSMContext):
-    gender = message.text.strip().lower()
-    if gender in ["мужской", "женский"]:
-        await state.update_data(gender=gender.capitalize())
-        await message.answer("Дайте согласие на обработку персональных данных (напишите 'Согласен' или 'Согласна'):")
-        await state.set_state(ProfileForm.personal_data_consent)
-    else:
-        await message.answer('Пожалуйста, напишите "Мужской" или "Женский".')
-
+# Обработка пола
+@router.callback_query(ProfileForm.gender, F.data.in_(["gender_male", "gender_female"]))
+async def process_gender(callback: types.CallbackQuery, state: FSMContext):
+    gender = "Мужской" if callback.data == "gender_male" else "Женский"
+    await state.update_data(gender=gender)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Согласен", callback_data="consent_yes")],
+        [InlineKeyboardButton(text="Согласна", callback_data="consent_yes")]
+    ])
+    await callback.message.edit_text("Дайте согласие на обработку персональных данных:", reply_markup=keyboard)
+    await state.set_state(ProfileForm.personal_data_consent)
+    await callback.answer()
 
 # Обработка согласия на обработку данных
-@router.message(ProfileForm.personal_data_consent)
-async def process_personal_data_consent(message: types.Message, state: FSMContext):
-    if message.text.lower() in ["согласен", "согласна"]:
-        # Получаем данные из состояния
-        data = await state.get_data()
+@router.callback_query(ProfileForm.personal_data_consent, F.data == "consent_yes")
+async def process_personal_data_consent(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    # Получаем данные из состояния
+    data = await state.get_data()
 
-        # Проверяем, есть ли дата рождения
-        if "birth_date" not in data:
-            await message.answer("Ошибка: Дата рождения не указана.")
-            return
+    # Проверяем, есть ли дата рождения
+    if "birth_date" not in data:
+        await callback.message.answer("Ошибка: Дата рождения не указана.")
+        return
 
-        # Рассчитываем возраст на основе даты рождения
+    # Рассчитываем возраст на основе даты рождения
+    try:
+        birth_date = datetime.strptime(data["birth_date"], "%d.%m.%Y")  # Формат ДД.ММ.ГГГГ
+        today = datetime.today()
+        age = today.year - birth_date.year
+
+        # Корректируем возраст, если день рождения еще не наступил в этом году
+        if (today.month, today.day) < (birth_date.month, birth_date.day):
+            age -= 1
+    except ValueError:
+        await callback.message.answer("Ошибка: Неверный формат даты рождения. Используйте формат ДД.ММ.ГГГГ.")
+        return
+
+    # Подготавливаем данные для профиля
+    profile_data = {
+        "full_name": data["full_name"],
+        "birth_date": data["birth_date"],
+        "phone": data["phone"],
+        "address": data["address"],
+        "vacancy": data["vacancy"],
+        "desired_salary": data["desired_salary"],
+        "marital_status": data["marital_status"],
+        "children": data["children"],
+        "education": data["education"],
+        "additional_education": data["additional_education"],
+        "work_experience": data["work_experience"],
+        "health_restrictions": data["health_restrictions"],
+        "criminal_record": data["criminal_record"],
+        "preferred_schedule": data["preferred_schedule"],
+        "medical_book": data["medical_book"],
+        "military_service": data["military_service"],
+        "start_date": data["start_date"],
+        "vacancy_source": data["vacancy_source"],
+        "relatives_contacts": data["relatives_contacts"],
+        "friends_contacts": data["friends_contacts"],
+        "personal_data_consent": True
+    }
+
+    # Сохраняем пользователя и профиль в базу данных
+    async with SessionLocal() as session:
         try:
-            birth_date = datetime.strptime(data["birth_date"], "%d.%m.%Y")  # Формат ДД.ММ.ГГГГ
-            today = datetime.today()
-            age = today.year - birth_date.year
+            # Создаем пользователя и профиль
+            user = await add_user(
+                session,
+                telegram_id=callback.from_user.id,
+                full_name=data["full_name"],
+                age=age,  # Рассчитанный возраст
+                gender=data["gender"],  # Пол, который был запрошен ранее
+                profile_data=profile_data
+            )
+            await callback.message.answer("Спасибо! Ваша анкета успешно сохранена.", reply_markup=go_profile_keyboard())
+        except ValueError as e:
+            await callback.message.answer(f"Ошибка: {e}")
+        except Exception as e:
+            await callback.message.answer("Произошла ошибка при сохранении данных. Пожалуйста, попробуйте позже.")
+            logging.error(f"Ошибка при сохранении данных: {e}")
 
-            # Корректируем возраст, если день рождения еще не наступил в этом году
-            if (today.month, today.day) < (birth_date.month, birth_date.day):
-                age -= 1
-        except ValueError:
-            await message.answer("Ошибка: Неверный формат даты рождения. Используйте формат ДД.ММ.ГГГГ.")
-            return
-
-        # Подготавливаем данные для профиля
-        profile_data = {
-            "full_name": data["full_name"],
-            "birth_date": data["birth_date"],
-            "phone": data["phone"],
-            "address": data["address"],
-            "vacancy": data["vacancy"],
-            "desired_salary": data["desired_salary"],
-            "marital_status": data["marital_status"],
-            "children": data["children"],
-            "education": data["education"],
-            "additional_education": data["additional_education"],
-            "work_experience": data["work_experience"],
-            "health_restrictions": data["health_restrictions"],
-            "criminal_record": data["criminal_record"],
-            "preferred_schedule": data["preferred_schedule"],
-            "medical_book": data["medical_book"],
-            "military_service": data["military_service"],
-            "start_date": data["start_date"],
-            "vacancy_source": data["vacancy_source"],
-            "relatives_contacts": data["relatives_contacts"],
-            "friends_contacts": data["friends_contacts"],
-            "personal_data_consent": True
-        }
-
-        # Сохраняем пользователя и профиль в базу данных
-        async with SessionLocal() as session:
-            try:
-                # Создаем пользователя и профиль
-                user = await add_user(
-                    session,
-                    telegram_id=message.from_user.id,
-                    full_name=data["full_name"],
-                    age=age,  # Рассчитанный возраст
-                    gender=data["gender"],  # Пол, который был запрошен ранее
-                    profile_data=profile_data
-                )
-                await message.answer("Спасибо! Ваша анкета успешно сохранена.")
-            except ValueError as e:
-                await message.answer(f"Ошибка: {e}")
-            except Exception as e:
-                await message.answer("Произошла ошибка при сохранении данных. Пожалуйста, попробуйте позже.")
-                logging.error(f"Ошибка при сохранении данных: {e}")
-
-        # Очищаем состояние
-        await state.clear()
-    else:
-        await message.answer('Пожалуйста, напишите "Согласен" или "Согласна".')
+    # Очищаем состояние
+    await state.clear()
+    await callback.answer()

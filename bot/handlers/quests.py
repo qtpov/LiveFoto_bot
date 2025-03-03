@@ -1,14 +1,17 @@
 from aiogram import Router, types, F
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from aiogram.types import KeyboardButton
 from aiogram.filters import Command
-from bot.db.models import Task
-from bot.db.crud import get_tasks
+from bot.db.models import Task, UserResult
+from bot.db.crud import get_tasks, get_user_results
 from aiogram.types import FSInputFile
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from bot.keyboards.inline import create_inline_keyboard, create_inline_keyboard_2
+from bot.keyboards.inline import create_inline_keyboard, create_inline_keyboard_2, cancel_keyboard
 from sqlalchemy.future import select
 from bot.db.session import SessionLocal
-
+from sqlalchemy import select
 router = Router()
 
 # Клавиатура для меню
@@ -24,6 +27,8 @@ class TaskCreation(StatesGroup):
     description = State()
     options = State()
     correct_answer = State()
+    day = State()
+    quest_id = State()
 
 
 
@@ -62,16 +67,30 @@ async def process_task_options(message: types.Message, state: FSMContext):
 
 # Обработка ввода правильного ответа
 @router.message(TaskCreation.correct_answer)
+async def process_task_day(message: types.Message, state: FSMContext):
+    await state.update_data(correct_answer=message.text)
+    await message.answer("Введите цифру дня на который расчитан квест:")
+    await state.set_state(TaskCreation.day)
+
+@router.message(TaskCreation.day)
+async def process_task_day(message: types.Message, state: FSMContext):
+    await state.update_data(day=int(message.text))
+    await message.answer("Введите цифру номера группы заданий к которому добавить вопрос:")
+    await state.set_state(TaskCreation.quest_id)
+
+@router.message(TaskCreation.quest_id)
 async def process_task_correct_answer(message: types.Message, state: FSMContext):
     async with SessionLocal() as db:
-        correct_answer = message.text
+        quest_id = int(message.text)
         data = await state.get_data()
 
         task = Task(
             title=data["title"],
             description=data["description"],
             options=data["options"],
-            correct_answer=correct_answer
+            correct_answer=data["correct_answer"],
+            day = data['day'],
+            quest_id = quest_id
         )
         db.add(task)
         await db.commit()
@@ -180,73 +199,134 @@ async def cancel_edit(callback: types.CallbackQuery, state: FSMContext):
 
 
 
+def get_current_day():
+    # Пример логики: если сегодня первый день, возвращаем 1, и т.д.
+    # Здесь можно использовать datetime для определения текущего дня
+    return 1  # Заглушка, замените на реальную логику
+
+
+
+def go_quests_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Продолжить", callback_data="start_quest")]
+    ])
 
 
 @router.callback_query(F.data == "quests")
 async def show_tasks(callback: types.CallbackQuery):
-    # Получаем задания из базы данных
-    async with SessionLocal() as db:
-        tasks = await get_tasks(db)
+    # Определяем текущий день (например, 1, 2, 3)
+    current_day = get_current_day()  # Функция, которая возвращает текущий день
 
-        if not tasks:
-            await callback.message.answer("Заданий пока нет.")
+    async with SessionLocal() as db:
+        # Получаем квесты на текущий день
+        stmt = select(Task.quest_id, Task.title).where(Task.day == current_day).distinct(Task.quest_id)
+        result = await db.execute(stmt)
+        quests = result.all()
+
+        if not quests:
+            await callback.message.answer("Заданий на сегодня нет.")
             return
 
-        # Создаем инлайн-клавиатуру
-        keyboard = create_inline_keyboard(tasks, callback_prefix="task_")
+        # Получаем результаты пользователя
+        user_id = callback.from_user.id
+        user_results = await get_user_results(db, user_id=user_id)
 
-        # Отправляем сообщение с клавиатурой
-        await callback.message.edit_text("Выберите задание:", reply_markup=keyboard)
+        # Создаем словарь для хранения статусов квестов
+        task_statuses = {result.task_id: result.state for result in user_results}
+
+        # Формируем список квестов с их статусами
+        text = "Доступно сегодня:\n"
+        for quest in quests:
+            quest_id, title = quest
+
+            # Получаем все задачи для этого квеста
+            tasks_stmt = select(Task.id).where(Task.quest_id == quest_id)
+            tasks_result = await db.execute(tasks_stmt)
+            task_ids = tasks_result.scalars().all()
+
+            # Определяем статус квеста на основе статусов всех его задач
+            statuses = [task_statuses.get(task_id, "не выполнен") for task_id in task_ids]
+            if all(status == "выполнен" for status in statuses):
+                status = "выполнен"
+            elif any(status == "на проверке" for status in statuses):
+                status = "на проверке"
+            else:
+                status = "не выполнен"
+
+            text += f"{title} - {status}\n"
+
+        await callback.message.answer(text, reply_markup=go_quests_keyboard())
     await callback.answer()
 
-@router.callback_query(F.data.startswith("task_"))
+@router.callback_query(F.data == 'start_quest')
 async def process_task_callback(callback: types.CallbackQuery):
-    # Извлекаем ID задания из callback_data
-    task_id = int(callback.data.replace("task_", ""))
+    # Определяем, с какого квеста начинать (например, первый квест на текущий день)
+    current_day = get_current_day()
     async with SessionLocal() as session:
-        task = await session.execute(select(Task).filter(Task.id == task_id))
-        task = task.scalars().first()
+        stmt = select(Task).where(Task.day == current_day).order_by(Task.quest_id, Task.id).limit(1)
+        result = await session.execute(stmt)
+        task = result.scalars().first()
 
         if not task:
             await callback.message.answer("Заданий не найдено")
             return
 
-        # Здесь можно выполнить действия с выбранным заданием
+        # Отправляем первое задание квеста
         await callback.message.edit_text(
             f"{task.title}\n{task.description}",
-            reply_markup=create_inline_keyboard_2(task.options, callback_prefix=f"qw_{task_id}")
+            reply_markup=create_inline_keyboard_2(task.options, callback_prefix=f"qw_{task.id}")
         )
 
-    # Подтверждаем обработку callback
     await callback.answer()
 
 @router.callback_query(F.data.startswith("qw_"))
 async def process_task1_callback(callback: types.CallbackQuery):
-    task_id = int(callback.data[3:4])
+    task_id = int(callback.data.split("_")[1])  # Извлекаем task_id из callback_data
 
     async with SessionLocal() as session:
+        # Получаем текущее задание
         task = await session.execute(select(Task).filter(Task.id == task_id))
         task = task.scalars().first()
-
-        next_task = await session.execute(select(Task).filter(Task.id == task_id + 1))
-        next_task = next_task.scalars().first()
 
         if not task:
             await callback.message.answer("Заданий не найдено")
             return
 
-        if callback.data[5:] == task.correct_answer:
-            await callback.message.edit_text('верный ответ')
-            # Добавить проверку на последнее задание
+        # Проверяем ответ
+        if callback.data.split("_")[2] == task.correct_answer:
+            await callback.answer('Верный ответ!')
+
+            # Получаем следующее задание в текущем квесте
+            next_task_stmt = select(Task).where(
+                (Task.quest_id == task.quest_id) & (Task.id > task.id))
+            next_task_result = await session.execute(next_task_stmt)
+            next_task = next_task_result.scalars().first()
+
             if next_task:
-                await callback.message.answer(
+                # Если есть следующее задание в текущем квесте, отправляем его
+                await callback.message.edit_text(
                     f"{next_task.title}\n{next_task.description}",
-                    reply_markup=create_inline_keyboard_2(next_task.options, callback_prefix=f"qw_{task_id + 1}")
+                    reply_markup=create_inline_keyboard_2(next_task.options, callback_prefix=f"qw_{next_task.id}")
                 )
             else:
-                await callback.message.answer("Поздравляем! Вы прошли все задания.")
+                # Если задания в текущем квесте закончились, ищем следующий квест
+                next_quest_stmt = select(Task).where(
+                    (Task.day == task.day) & (Task.quest_id > task.quest_id))
+                next_quest_result = await session.execute(next_quest_stmt)
+                next_quest = next_quest_result.scalars().first()
+
+                if next_quest:
+                    # Если есть следующий квест, отправляем его первое задание
+                    await callback.message.edit_text(
+                        f"Поздравляем! Вы завершили квест '{task.quest_id}'.\n"
+                        f"Начинаем следующий квест: '{next_quest.quest_id}'.\n"
+                        f"{next_quest.title}\n{next_quest.description}",
+                        reply_markup=create_inline_keyboard_2(next_quest.options, callback_prefix=f"qw_{next_quest.id}")
+                    )
+                else:
+                    # Если квестов больше нет, сообщаем об этом
+                    await callback.message.edit_text("Поздравляем! Вы прошли все квесты на сегодня.")
         else:
-            await callback.message.edit_text('ответ неверный попробуй снова')
-            return
+            await callback.message.edit_text('Ответ неверный. Попробуйте снова.')
 
     await callback.answer()
