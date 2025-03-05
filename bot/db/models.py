@@ -18,6 +18,7 @@ class Task(Base):
     day = Column(Integer)
     quest_id = Column(Integer)
     photo = Column(String, nullable=True)  # Новое поле для хранения ссылки на фото
+
 class UserProfile(Base):
     __tablename__ = "user_profiles"
     id = Column(Integer, primary_key=True)
@@ -63,7 +64,7 @@ class User(Base):
 class UserResult(Base):
     __tablename__ = "user_results"
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))  # Связь с User
+    user_id = Column(BigInteger, ForeignKey("users.id"))  # Связь с User
     task_id = Column(Integer, ForeignKey("tasks.id"))  # Связь с Task
     state = Column(String, nullable=False)
     attempt = Column(Integer, default=1)
@@ -74,7 +75,7 @@ class Achievement(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"))  # Связь с User
+    user_id = Column(BigInteger, ForeignKey("users.id"))  # Связь с User
     user = relationship("User")
 
 class Moderation(Base):
@@ -82,5 +83,5 @@ class Moderation(Base):
     id = Column(Integer, primary_key=True)
     task_id = Column(Integer, ForeignKey("tasks.id"))  # Связь с task
     status = Column(String, default="pending")  # approved, rejected
-    user_id = Column(Integer,ForeignKey("users.id"))  # ID юзера
+    user_id = Column(BigInteger,ForeignKey("users.id"))  # ID юзера
     #timestamp = Column(DateTime, default=func.now())

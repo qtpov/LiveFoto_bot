@@ -34,6 +34,18 @@ def knowledge_keyboard():
         [InlineKeyboardButton(text="Профиль", callback_data="profile")]
     ])
 
+def knowledge_theme_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data="knowledge")]
+    ])
+
+
+def go_quests_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Продолжить", callback_data="start_quest")],
+        [InlineKeyboardButton(text="Профиль", callback_data="profile")]
+    ])
+
 
 #Создает инлайн-клавиатуру из массива данных каждая отдельно
 def create_inline_keyboard(data, callback_prefix="task_"):

@@ -2,13 +2,13 @@ from aiogram import Router, types, F
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiogram.types import KeyboardButton
 from aiogram.filters import Command
-from bot.db.models import Task, UserResult
+from bot.db.models import Task, UserResult,User
 from bot.db.crud import get_tasks, get_user_results
 from aiogram.types import FSInputFile, InputMediaPhoto
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from bot.keyboards.inline import create_inline_keyboard, create_inline_keyboard_2, cancel_keyboard
+from bot.keyboards.inline import create_inline_keyboard, create_inline_keyboard_2, cancel_keyboard, go_quests_keyboard, go_profile_keyboard
 from sqlalchemy.future import select
 from bot.db.session import SessionLocal
 from pathlib import Path
@@ -37,6 +37,9 @@ class TaskCreation(StatesGroup):
 
 @router.message(Command("add_quests"))
 async def start(message: types.Message):
+    if message.from_user.id != 693131022:
+        await message.answer("У вас нет прав для выполнения этой команды.")
+        return
     await message.answer("Выбери действие:", reply_markup=make_keyboard())
 
 
@@ -217,23 +220,23 @@ async def cancel_edit(callback: types.CallbackQuery, state: FSMContext):
 
 
 
-def get_current_day():
-    # Пример логики: если сегодня первый день, возвращаем 1, и т.д.
-    # Здесь можно использовать datetime для определения текущего дня
-    return 1  # Заглушка, замените на реальную логику
+async def get_current_day(user_id: int):
+    async with SessionLocal() as session:
+        user = await session.execute(select(User).filter(User.telegram_id == user_id))
+        user = user.scalars().first()
 
+        if not user:
+            await message_or_callback.answer("Ты ещё не зарегистрирован! Напиши /start.")
+            return
 
-
-def go_quests_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Продолжить", callback_data="start_quest")]
-    ])
+        curr_day = user.day
+    return curr_day
 
 
 @router.callback_query(F.data == "quests")
 async def show_tasks(callback: types.CallbackQuery):
     # Определяем текущий день (например, 1, 2, 3)
-    current_day = get_current_day()  # Функция, которая возвращает текущий день
+    current_day = await get_current_day(callback.from_user.id)  # Функция, которая возвращает текущий день
 
     async with SessionLocal() as db:
         # Получаем квесты на текущий день
@@ -273,7 +276,7 @@ async def show_tasks(callback: types.CallbackQuery):
 
             text += f"{title} - {status}\n"
 
-        await callback.message.answer(text, reply_markup=go_quests_keyboard())
+        await callback.message.edit_text(text, reply_markup=go_quests_keyboard())
     await callback.answer()
 # Базовый путь к проекту
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -283,7 +286,7 @@ async def process_task_callback(callback: types.CallbackQuery):
 
 
     # Получаем задачу из базы данных
-    current_day = get_current_day()
+    current_day = await get_current_day(callback.from_user.id)
     async with SessionLocal() as session:
         stmt = select(Task).where(Task.day == current_day).order_by(Task.quest_id, Task.id).limit(1)
         result = await session.execute(stmt)
@@ -360,15 +363,15 @@ async def process_task1_callback(callback: types.CallbackQuery):
                     # Если есть следующее задание в текущем квесте, отправляем его
                     photo = InputMediaPhoto(media=FSInputFile(str(photo_path)))
                     await callback.message.edit_media(media = photo)
-                    await callback.message.edit_caption(caption = f"Поздравляем! Вы завершили квест '{task.quest_id}'.\n"
-                        f"Начинаем следующий квест: '{next_quest.quest_id}'.\n"
+                    await callback.message.edit_caption(caption = f"Вы завершили квест {task.quest_id}.\n"
+                        f"Начинаем следующий квест.\n\n"
                         f"{next_quest.title}\n{next_quest.description}",
                         reply_markup=create_inline_keyboard_2(next_quest.options, callback_prefix=f"qw_{next_quest.id}")
                     )
                 else:
                     await callback.message.delete()
                     # Если квестов больше нет, сообщаем об этом
-                    await callback.message.answer("Поздравляем! Вы прошли все квесты на сегодня.")
+                    await callback.message.answer("Поздравляем! Вы прошли все квесты на сегодня.", reply_markup=go_profile_keyboard())
         else:
             await callback.answer('Ответ неверный.')
 

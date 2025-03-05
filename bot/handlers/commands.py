@@ -23,7 +23,7 @@ async def start(message: types.Message):
 
     if not user:
         await message.answer(
-            f'Здравствуйте{message.from_user.full_name}!\nДля продолжения необходимо пройти регистрацию,'
+            f'Здравствуйте {message.from_user.full_name}!\nДля продолжения необходимо пройти регистрацию,'
             f' для продолжения нажмите кнопку снизу', reply_markup=reg_keyboard())
     else:
         await message.answer(f"С возвращением, {user.full_name}!",reply_markup=go_profile_keyboard())

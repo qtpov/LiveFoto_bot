@@ -32,7 +32,7 @@ async def show_profile(user_id: int, message_or_callback: types.Message | types.
             f'\n\n👤 ФИО: {user.full_name}'
             f'\n🎂 Возраст: {user.age}'
             f'\n🏆 Последняя ачивка: {achievement_text}'
-            f'\n День: {user.day}'
+            f'\n📅 День: {user.day}'
         )
 
     if isinstance(message_or_callback, types.CallbackQuery):
@@ -66,9 +66,8 @@ async def confirm_clear_db(message: types.Message, state: FSMContext):
         async with SessionLocal() as session:
             try:
                 await session.execute(delete(User))
-                await session.execute(delete(Task))
-                await session.execute(delete(Achievement))
-                await session.execute(delete(Moderation))
+                #await session.execute(delete(Achievement))
+                #await session.execute(delete(Moderation))
                 await session.commit()
                 await message.answer("База данных успешно очищена.")
             except Exception as e:

@@ -1,6 +1,6 @@
 
 from aiogram import Router, types, F
-from bot.keyboards.inline import knowledge_keyboard
+from bot.keyboards.inline import knowledge_keyboard, knowledge_theme_keyboard
 
 router = Router()
 
@@ -12,6 +12,6 @@ async def send_knowledge_list(callback: types.CallbackQuery):
 
 @router.callback_query(F.data.startswith("zn_"))
 async def proces_knowledge(callback: types.CallbackQuery):
-    await callback.message.answer('пока пусто')
+    await callback.message.edit_text('пока пусто',reply_markup=knowledge_theme_keyboard())
     await callback.answer()
 
