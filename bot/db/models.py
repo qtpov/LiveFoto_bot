@@ -1,12 +1,6 @@
-from sqlalchemy import Column, BigInteger, Integer, String, ForeignKey, Boolean, DateTime, func, ARRAY,Text
+from sqlalchemy import Column, BigInteger, Integer, String, ForeignKey, Boolean, DateTime, func, ARRAY, Text
 from sqlalchemy.orm import relationship
 from .session import Base
-#
-# class Quest(Base):
-#     __tablename__ = "quests"
-#     id = Column(Integer, primary_key=True)
-#     title = Column(String, nullable=False)
-#     description = Column(String)
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -22,7 +16,7 @@ class Task(Base):
 class UserProfile(Base):
     __tablename__ = "user_profiles"
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True)  # Связь с User
+    telegram_id = Column(BigInteger, ForeignKey("users.telegram_id"), unique=True)  # Связь с User по telegram_id
     full_name = Column(String, nullable=False)  # ФИО
     birth_date = Column(String)  # Дата рождения
     phone = Column(String)  # Телефон
@@ -47,11 +41,10 @@ class UserProfile(Base):
 
     user = relationship("User", back_populates="profile")  # Связь с User
 
-# Добавьте связь в модель User
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    telegram_id = Column(BigInteger, unique=True, nullable=False)
+    telegram_id = Column(BigInteger, unique=True, nullable=False)  # Уникальный идентификатор Telegram
     full_name = Column(String, nullable=False)
     age = Column(Integer, nullable=False)
     gender = Column(String, nullable=False)
@@ -60,22 +53,21 @@ class User(Base):
     day = Column(Integer, default=1)
     profile = relationship("UserProfile", back_populates="user", uselist=False)  # Один-к-одному
 
-
 class UserResult(Base):
     __tablename__ = "user_results"
     id = Column(Integer, primary_key=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"))  # Связь с User
-    task_id = Column(Integer, ForeignKey("tasks.id"))  # Связь с Task
+    user_id = Column(BigInteger, ForeignKey("users.telegram_id"))  # Связь с User по telegram_id
+    quest_id = Column(Integer)  # Добавляем поле для хранения quest_id
     state = Column(String, nullable=False)
     attempt = Column(Integer, default=1)
-    result = Column(Integer, default=1) #можно сделать процент верных ответов из всех
+    result = Column(Integer, default=0)  # Количество верных ответов для этого задания
 
 class Achievement(Base):
     __tablename__ = "achievements"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    user_id = Column(BigInteger, ForeignKey("users.id"))  # Связь с User
+    user_id = Column(BigInteger, ForeignKey("users.telegram_id"))  # Связь с User по telegram_id
     user = relationship("User")
 
 class Moderation(Base):
@@ -83,5 +75,5 @@ class Moderation(Base):
     id = Column(Integer, primary_key=True)
     task_id = Column(Integer, ForeignKey("tasks.id"))  # Связь с task
     status = Column(String, default="pending")  # approved, rejected
-    user_id = Column(BigInteger,ForeignKey("users.id"))  # ID юзера
+    user_id = Column(BigInteger, ForeignKey("users.telegram_id"))  # Связь с User по telegram_id
     #timestamp = Column(DateTime, default=func.now())

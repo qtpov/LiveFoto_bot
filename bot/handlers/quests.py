@@ -12,7 +12,7 @@ from bot.keyboards.inline import create_inline_keyboard, create_inline_keyboard_
 from sqlalchemy.future import select
 from bot.db.session import SessionLocal
 from pathlib import Path
-from sqlalchemy import select
+from sqlalchemy import select, func
 import os
 router = Router()
 
@@ -235,7 +235,6 @@ async def get_current_day(user_id: int):
 
 @router.callback_query(F.data == "quests")
 async def show_tasks(callback: types.CallbackQuery):
-    # Определяем текущий день (например, 1, 2, 3)
     current_day = await get_current_day(callback.from_user.id)  # Функция, которая возвращает текущий день
 
     async with SessionLocal() as db:
@@ -253,7 +252,16 @@ async def show_tasks(callback: types.CallbackQuery):
         user_results = await get_user_results(db, user_id=user_id)
 
         # Создаем словарь для хранения статусов квестов
-        task_statuses = {result.task_id: result.state for result in user_results}
+        quest_statuses = {result.quest_id: result.state for result in user_results}
+
+        # Проверяем, выполнены ли все квесты
+        all_quests_completed = all(
+            quest_statuses.get(quest_id, "не выполнен") == "выполнен" for quest_id, _ in quests
+        )
+
+        if all_quests_completed:
+            await callback.message.answer("Все квесты на сегодня выполнены! 🎉")
+            return
 
         # Формируем список квестов с их статусами
         text = "Доступно сегодня:\n"
@@ -266,7 +274,7 @@ async def show_tasks(callback: types.CallbackQuery):
             task_ids = tasks_result.scalars().all()
 
             # Определяем статус квеста на основе статусов всех его задач
-            statuses = [task_statuses.get(task_id, "не выполнен") for task_id in task_ids]
+            statuses = [quest_statuses.get(quest_id, "не выполнен") for _ in task_ids]
             if all(status == "выполнен" for status in statuses):
                 status = "выполнен"
             elif any(status == "на проверке" for status in statuses):
@@ -278,12 +286,12 @@ async def show_tasks(callback: types.CallbackQuery):
 
         await callback.message.edit_text(text, reply_markup=go_quests_keyboard())
     await callback.answer()
+
 # Базовый путь к проекту
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 @router.callback_query(F.data == 'start_quest')
 async def process_task_callback(callback: types.CallbackQuery):
-
 
     # Получаем задачу из базы данных
     current_day = await get_current_day(callback.from_user.id)
@@ -329,50 +337,129 @@ async def process_task1_callback(callback: types.CallbackQuery):
             await callback.message.answer("Заданий не найдено")
             return
 
+        # Получаем результат пользователя для этого задания
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == task.quest_id
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=task.quest_id,  # Сохраняем quest_id
+                state="не выполнен",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+
         # Проверяем ответ
         if callback.data.split("_")[2] == task.correct_answer:
+            user_result.result += 1
+            user_result.state = "выполнен"
             await callback.answer('Верный ответ!')
-
-            # Получаем следующее задание в текущем квесте
-            next_task_stmt = select(Task).where(
-                (Task.quest_id == task.quest_id) & (Task.id > task.id))
-            next_task_result = await session.execute(next_task_stmt)
-            next_task = next_task_result.scalars().first()
-
-            if next_task:
-                # Формируем абсолютный путь к файлу (с учетом папки handlers)
-                relative_path = f"handlers/{next_task.photo}"
-                photo_path = BASE_DIR / relative_path
-                # Если есть следующее задание в текущем квесте, отправляем его
-                photo = InputMediaPhoto(media = FSInputFile(str(photo_path)))
-                await callback.message.edit_media(photo)
-                await callback.message.edit_caption(caption=f"{next_task.title}\n{next_task.description}",
-                    reply_markup=create_inline_keyboard_2(next_task.options, callback_prefix=f"qw_{next_task.id}")
-                )
-            else:
-                # Если задания в текущем квесте закончились, ищем следующий квест
-                next_quest_stmt = select(Task).where(
-                    (Task.day == task.day) & (Task.quest_id > task.quest_id))
-                next_quest_result = await session.execute(next_quest_stmt)
-                next_quest = next_quest_result.scalars().first()
-
-                if next_quest:
-                    # Формируем абсолютный путь к файлу (с учетом папки handlers)
-                    relative_path = f"handlers/{next_quest.photo}"
-                    photo_path = BASE_DIR / relative_path
-                    # Если есть следующее задание в текущем квесте, отправляем его
-                    photo = InputMediaPhoto(media=FSInputFile(str(photo_path)))
-                    await callback.message.edit_media(media = photo)
-                    await callback.message.edit_caption(caption = f"Вы завершили квест {task.quest_id}.\n"
-                        f"Начинаем следующий квест.\n\n"
-                        f"{next_quest.title}\n{next_quest.description}",
-                        reply_markup=create_inline_keyboard_2(next_quest.options, callback_prefix=f"qw_{next_quest.id}")
-                    )
-                else:
-                    await callback.message.delete()
-                    # Если квестов больше нет, сообщаем об этом
-                    await callback.message.answer("Поздравляем! Вы прошли все квесты на сегодня.", reply_markup=go_profile_keyboard())
         else:
             await callback.answer('Ответ неверный.')
+
+        # Получаем следующее задание в текущем квесте
+        next_task_stmt = select(Task).where(
+            (Task.quest_id == task.quest_id) & (Task.id > task.id))
+        next_task_result = await session.execute(next_task_stmt)
+        next_task = next_task_result.scalars().first()
+
+        if next_task:
+            # Формируем абсолютный путь к файлу (с учетом папки handlers)
+            relative_path = f"handlers/{next_task.photo}"
+            photo_path = BASE_DIR / relative_path
+            # Если есть следующее задание в текущем квесте, отправляем его
+            photo = InputMediaPhoto(media=FSInputFile(str(photo_path)))
+            await callback.message.edit_media(photo)
+            await callback.message.edit_caption(caption=f"{next_task.title}\n{next_task.description}",
+                                                reply_markup=create_inline_keyboard_2(next_task.options,
+                                                                                      callback_prefix=f"qw_{next_task.id}")
+                                                )
+        else:
+            # Если задания в текущем квесте закончились, ищем следующий квест
+            next_quest_stmt = select(Task).where(
+                (Task.day == task.day) & (Task.quest_id > task.quest_id))
+            next_quest_result = await session.execute(next_quest_stmt)
+            next_quest = next_quest_result.scalars().first()
+
+            if next_quest:
+                # Формируем абсолютный путь к файлу (с учетом папки handlers)
+                relative_path = f"handlers/{next_quest.photo}"
+                photo_path = BASE_DIR / relative_path
+
+                # Подсчитываем общее количество верных ответов для текущего квеста
+                total_correct_in_quest = user_result.result
+
+                # Подсчитываем общее количество заданий в квесте
+                total_tasks_in_quest = await session.execute(
+                    select(func.count(Task.id)).filter(
+                        Task.quest_id == task.quest_id
+                    )
+                )
+                total_tasks_in_quest = total_tasks_in_quest.scalar() or 0
+
+                # Если есть следующее задание в текущем квесте, отправляем его
+                photo = InputMediaPhoto(media=FSInputFile(str(photo_path)))
+                await callback.message.edit_media(media=photo)
+                await callback.message.edit_caption(caption=f"Вы завершили квест {task.quest_id}.\n"
+                                                            f"Верных ответов: {total_correct_in_quest} из {total_tasks_in_quest}\n"
+                                                            f"Начинаем следующий квест.\n\n"
+                                                            f"{next_quest.title}\n{next_quest.description}",
+                                                    reply_markup=create_inline_keyboard_2(next_quest.options,
+                                                                                          callback_prefix=f"qw_{next_quest.id}")
+                                                    )
+            else:
+                await callback.message.delete()
+                # Если квестов больше нет, сообщаем об этом
+                # Подсчитываем общее количество верных ответов для текущего квеста
+                total_correct_in_quest = user_result.result
+
+                # Подсчитываем общее количество заданий в квесте
+                total_tasks_in_quest = await session.execute(
+                    select(func.count(Task.id)).filter(
+                        Task.quest_id == task.quest_id
+                    )
+                )
+                total_tasks_in_quest = total_tasks_in_quest.scalar() or 0
+
+                # Проверяем, выполнены ли все задачи с первой попытки
+                all_tasks_completed_first_try = await session.execute(
+                    select(func.count(UserResult.id)).filter(
+                        UserResult.user_id == callback.from_user.id,
+                        UserResult.quest_id == task.quest_id,
+                        UserResult.attempt == 1,
+                        UserResult.state == "выполнен"
+                    )
+                )
+                all_tasks_completed_first_try = all_tasks_completed_first_try.scalar() == total_tasks_in_quest
+
+                # Если все задачи выполнены с первой попытки, выдаем ачивку
+                if all_tasks_completed_first_try:
+                    achievement = Achievement(
+                        user_id=callback.from_user.id,
+                        quest_id=task.quest_id,
+                        name="Мастер квеста",
+                        description="Выполнил все задачи квеста с первой попытки!"
+                    )
+                    session.add(achievement)
+                    await session.commit()
+                    await callback.message.answer(
+                        "🎉 Поздравляем! Вы выполнили все задачи квеста с первой попытки и получили ачивку!"
+                    )
+
+                # Выводим сообщение с результатами
+                await callback.message.answer(
+                    f"Верных ответов: {total_correct_in_quest} из {total_tasks_in_quest}\n"
+                    f"Поздравляем! Вы прошли все квесты на сегодня.\n",
+                    reply_markup=go_profile_keyboard()
+                )
+
+        await session.commit()
 
     await callback.answer()
