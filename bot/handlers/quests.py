@@ -226,7 +226,7 @@ async def get_current_day(user_id: int):
         user = user.scalars().first()
 
         if not user:
-            await message_or_callback.answer("Ты ещё не зарегистрирован! Напиши /start.")
+            await message_or_callback.edit_text("Ты ещё не зарегистрирован! Напиши /start.")
             return
 
         curr_day = user.day
@@ -244,7 +244,7 @@ async def show_tasks(callback: types.CallbackQuery):
         quests = result.all()
 
         if not quests:
-            await callback.message.answer("Заданий на сегодня нет.")
+            await callback.message.edit_text("Заданий на сегодня нет.",reply_markup=go_profile_keyboard())
             return
 
         # Получаем результаты пользователя
@@ -260,7 +260,7 @@ async def show_tasks(callback: types.CallbackQuery):
         )
 
         if all_quests_completed:
-            await callback.message.answer("Все квесты на сегодня выполнены! 🎉")
+            await callback.message.edit_text("Все квесты на сегодня выполнены! 🎉",reply_markup=go_profile_keyboard())
             return
 
         # Формируем список квестов с их статусами
