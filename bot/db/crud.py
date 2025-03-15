@@ -39,23 +39,6 @@ async def add_user(
             full_name=profile_data.get("full_name", ""),
             birth_date=profile_data.get("birth_date", ""),
             phone=profile_data.get("phone", ""),
-            address=profile_data.get("address", ""),
-            vacancy=profile_data.get("vacancy", ""),
-            desired_salary=profile_data.get("desired_salary", ""),
-            marital_status=profile_data.get("marital_status", ""),
-            children=profile_data.get("children", ""),
-            education=profile_data.get("education", ""),
-            additional_education=profile_data.get("additional_education", ""),
-            work_experience=profile_data.get("work_experience", ""),
-            health_restrictions=profile_data.get("health_restrictions", ""),
-            criminal_record=profile_data.get("criminal_record", ""),
-            preferred_schedule=profile_data.get("preferred_schedule", ""),
-            medical_book=profile_data.get("medical_book", ""),
-            military_service=profile_data.get("military_service", ""),
-            start_date=profile_data.get("start_date", ""),
-            vacancy_source=profile_data.get("vacancy_source", ""),
-            relatives_contacts=profile_data.get("relatives_contacts", ""),
-            friends_contacts=profile_data.get("friends_contacts", ""),
             personal_data_consent=profile_data.get("personal_data_consent", False)
         )
         session.add(profile)
