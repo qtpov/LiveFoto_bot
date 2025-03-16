@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy.future import select
 from bot.db.session import SessionLocal
-from bot.db.models import Task,User
+from bot.db.models import User
 from bot.keyboards.inline import reg_keyboard, go_profile_keyboard
 
 router = Router()

@@ -1,6 +1,7 @@
 from aiogram import types
 from ..db.session import SessionLocal
-from ..db.models import  Moderation, Task
+from ..db.models import  Moderation
+
 
 
 async def review_quest(call: types.CallbackQuery, quest_id: int, approved: bool):

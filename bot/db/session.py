@@ -17,7 +17,7 @@ Base = declarative_base()
 
 # Функция инициализации базы данных (создание таблиц)
 async def init_db():
-    from .models import User, Task, Achievement, Moderation
+    from .models import User, Achievement, Moderation
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)  # Асинхронный вызов создания таблиц

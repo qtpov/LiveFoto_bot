@@ -2,16 +2,16 @@ from sqlalchemy import Column, BigInteger, Integer, String, ForeignKey, Boolean,
 from sqlalchemy.orm import relationship
 from .session import Base
 
-class Task(Base):
-    __tablename__ = "tasks"
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    description = Column(String)
-    options = Column(ARRAY(String))
-    correct_answer = Column(String)
-    day = Column(Integer)
-    quest_id = Column(Integer)
-    photo = Column(String, nullable=True)  # Новое поле для хранения ссылки на фото
+# class Task(Base):
+#     __tablename__ = "tasks"
+#     id = Column(Integer, primary_key=True, index=True)
+#     title = Column(String, index=True)
+#     description = Column(String)
+#     options = Column(ARRAY(String))
+#     correct_answer = Column(String)
+#     day = Column(Integer)
+#     quest_id = Column(Integer)
+#     photo = Column(String, nullable=True)  # Новое поле для хранения ссылки на фото
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
