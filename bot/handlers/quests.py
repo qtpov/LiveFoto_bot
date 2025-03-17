@@ -293,7 +293,7 @@ async def quest_2(callback: types.CallbackQuery, state: FSMContext):
 
     await callback.answer()
 
-
+#asdasdasdasdasd
 
 
 
@@ -321,7 +321,7 @@ async def quest_3(callback: types.CallbackQuery, state: FSMContext):
     video = FSInputFile(str(video_path))  # Преобразуем Path в строку
     await callback.message.answer_video(
         video,
-        caption="Квест 3: \n"
+        caption="Квест 3: пупупу \n"
     )
 
     await callback.answer()
