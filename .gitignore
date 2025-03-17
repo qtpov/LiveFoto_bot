@@ -20,3 +20,4 @@ config.json
 # Настройки IDE
 .vscode/
 .idea/
+/bot/handlers/media/
