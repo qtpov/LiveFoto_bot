@@ -56,6 +56,15 @@ def quest1_keyboard():
         [InlineKeyboardButton(text="Туалет", callback_data="toilet")]
     ])
 
+def quest2_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Автоматы", callback_data="Автоматы"),
+        InlineKeyboardButton(text="Батуты", callback_data="Батуты")],
+        [InlineKeyboardButton(text="Трон", callback_data="Трон"),
+         InlineKeyboardButton(text="Лабиринт", callback_data="Лабиринт")],
+        [InlineKeyboardButton(text="Детская", callback_data="Детская")]
+    ])
+
 
 #
 # #Создает инлайн-клавиатуру из массива данных каждая отдельно
