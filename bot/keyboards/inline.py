@@ -65,6 +65,42 @@ def quest2_keyboard():
         [InlineKeyboardButton(text="Детская", callback_data="Детская")]
     ])
 
+def quest3_keyboard_after_video():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Приступить", callback_data="complete_video_qw3")]
+    ])
+
+def quest3_keyboard_ask1():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Прогулка", callback_data="Прогулка")],
+        [InlineKeyboardButton(text="Печать", callback_data="Печать")],
+        [InlineKeyboardButton(text="Сборка техники", callback_data="Сборка техники")]
+    ])
+
+def quest3_keyboard_ask2():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Фотографирование", callback_data="Фотографирование")],
+        [InlineKeyboardButton(text="Ретушь", callback_data="Ретушь")],
+        [InlineKeyboardButton(text="Печать", callback_data="Печать")]
+    ])
+def quest3_keyboard_ask3():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Обед на локации", callback_data="Обед на локации")],
+        [InlineKeyboardButton(text="Демонстрация", callback_data="Демонстрация")],
+        [InlineKeyboardButton(text="Ретушь", callback_data="Ретушь")]
+    ])
+def quest3_keyboard_ask4():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Сборка техники", callback_data="Сборка техники")],
+        [InlineKeyboardButton(text="Печать", callback_data="Печать")],
+        [InlineKeyboardButton(text="Просмотр роликов", callback_data="Просмотр роликов")]
+    ])
+def quest3_keyboard_ask5():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Демонстрация", callback_data="Демонстрация")],
+        [InlineKeyboardButton(text="Отчет дня", callback_data="Отчет дня")],
+        [InlineKeyboardButton(text="Ожидание", callback_data="Ожидание")]
+    ])
 
 #
 # #Создает инлайн-клавиатуру из массива данных каждая отдельно
