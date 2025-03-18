@@ -28,3 +28,28 @@ async def start(message: types.Message):
     else:
         await message.answer(f"С возвращением, {user.full_name}!",reply_markup=go_profile_keyboard())
 
+
+# # Обработчик для файлов и медиа
+# @router.message()
+# async def handle_files(message: types.Message):
+#     if message.document:
+#         file_id = message.document.file_id
+#         await message.answer(f"File ID документа: {file_id}")
+#     elif message.photo:
+#         file_id = message.photo[-1].file_id  # Берем последний элемент, так как он самый большой
+#         await message.answer(f"File ID фото: {file_id}")
+#     elif message.video:
+#         file_id = message.video.file_id
+#         await message.answer(f"File ID видео: {file_id}")
+#     elif message.audio:
+#         file_id = message.audio.file_id
+#         await message.answer(f"File ID аудио: {file_id}")
+#     elif message.voice:
+#         file_id = message.voice.file_id
+#         await message.answer(f"File ID голосового сообщения: {file_id}")
+#     elif message.sticker:
+#         file_id = message.sticker.file_id
+#         await message.answer(f"File ID стикера: {file_id}")
+#     else:
+#         await message.answer("Этот тип медиа не поддерживается.")
+
