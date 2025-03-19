@@ -16,6 +16,7 @@ class ClearDBConfirmation(StatesGroup):
 # Общая функция для отображения профиля
 async def show_profile(user_id: int, message_or_callback: types.Message | types.CallbackQuery):
     async with SessionLocal() as session:
+        # Получаем пользователя по telegram_id
         user = await session.execute(select(User).filter(User.telegram_id == user_id))
         user = user.scalars().first()
 
@@ -23,18 +24,27 @@ async def show_profile(user_id: int, message_or_callback: types.Message | types.
             await message_or_callback.answer("Ты ещё не зарегистрирован! Напиши /start.")
             return
 
-        last_achievement = await session.execute(select(Achievement).filter_by(user_id=user.id).order_by(Achievement.id.desc()))
+        # Получаем последнюю ачивку пользователя по user_id (telegram_id)
+        last_achievement = await session.execute(
+            select(Achievement)
+            .filter(Achievement.user_id == user_id)  # Используем user_id (telegram_id)
+            .order_by(Achievement.id.desc())
+        )
         last_achievement = last_achievement.scalars().first()
+
+        # Формируем текст для ачивки
         achievement_text = last_achievement.name if last_achievement else "Нет ачивок"
 
+        # Формируем текст профиля
         text = (
-            f'🧑‍💻 *Профиль героя*'
-            f'\n\n👤 ФИО: {user.full_name}'
-            f'\n🎂 Возраст: {user.age}'
-            f'\n🏆 Последняя ачивка: {achievement_text}'
-            f'\n📅 День: {user.day}'
+            f'🧑‍💻 *Профиль героя*\n\n'
+            f'👤 ФИО: {user.full_name}\n'
+            f'🎂 Возраст: {user.age}\n'
+            f'🏆 Последняя ачивка: {achievement_text}\n'
+            f'📅 День: {user.day}'
         )
 
+    # Отправляем или редактируем сообщение
     if isinstance(message_or_callback, types.CallbackQuery):
         await message_or_callback.message.edit_text(text, parse_mode="Markdown", reply_markup=profile_keyboard())
     else:

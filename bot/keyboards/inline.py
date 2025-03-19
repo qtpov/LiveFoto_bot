@@ -70,6 +70,33 @@ def quest3_keyboard_after_video():
         [InlineKeyboardButton(text="Приступить", callback_data="complete_video_qw3")]
     ])
 
+
+def quest4_keyboard_after_clear():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Далее", callback_data="next_to_items")]
+    ])
+
+def quest4_keyboard_after_trash():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Приступить", callback_data="start_selection")]
+    ])
+
+# Клавиатура для выбора цифр
+def quest4_keyboard(selected_numbers: set[int]) -> InlineKeyboardMarkup:
+    buttons = []
+    for number in range(1, 11):
+        text = f"{number} ✅" if number in selected_numbers else str(number)
+        buttons.append(InlineKeyboardButton(text=text, callback_data=f"select_{number}"))
+
+    # Разбиваем кнопки на строки по 3 или 4 кнопки
+    keyboard = []
+    for i in range(0, len(buttons), 3):  # По 3 кнопки в строке
+        keyboard.append(buttons[i:i + 3])
+
+    # Добавляем кнопку "Готово" в отдельную строку
+    keyboard.append([InlineKeyboardButton(text="Готово", callback_data="done")])
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 def quest3_keyboard(question_number: int):
     """
     Возвращает клавиатуру для вопроса по его номеру.

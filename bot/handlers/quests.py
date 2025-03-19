@@ -2,7 +2,7 @@ from aiogram import Router, types, F
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.types import KeyboardButton, FSInputFile
 from aiogram.filters import Command
-from bot.db.models import UserResult, User
+from bot.db.models import UserResult, User, Achievement
 from aiogram.fsm.context import FSMContext
 from bot.keyboards.inline import *
 from aiogram.fsm.state import State, StatesGroup
@@ -88,6 +88,7 @@ correct_answers_qw3 = {
     3: 'Ретушь',
     4: 'Печать',
     5: 'Демонстрация'
+
 }
 
 # Базовый путь к проекту
@@ -121,6 +122,38 @@ def get_quest_finish_keyboard(correct_count, total_questions, current_quest_id):
         ))
     return builder.as_markup()
 
+async def give_achievement(user_id: int, quest_id: int, session):
+    # Проверяем, выполнено ли 100% квеста
+    user_result = await session.execute(
+        select(UserResult).filter(
+            UserResult.user_id == user_id,
+            UserResult.quest_id == quest_id
+        )
+    )
+    user_result = user_result.scalars().first()
+
+
+    # Проверяем, есть ли уже такая ачивка у пользователя
+    achievement = await session.execute(
+        select(Achievement).filter(
+            Achievement.user_id == user_id,
+            Achievement.name == f"Квест {quest_id} выполнен на 100%"
+        )
+    )
+    achievement = achievement.scalars().first()
+
+    if not achievement:
+        # Добавляем ачивку с описанием
+        new_achievement = Achievement(
+            name=f"Квест {quest_id} выполнен на 100%",
+            description=f"Вы успешно выполнили все задания квеста {quest_id} без ошибок!",
+            user_id=user_id
+        )
+        session.add(new_achievement)
+        await session.commit()
+        return True
+
+
 # Функция для завершения квеста
 async def finish_quest(callback: types.CallbackQuery, state: FSMContext, correct_count, total_questions, current_quest_id):
     user_data = await state.get_data()
@@ -138,9 +171,23 @@ async def finish_quest(callback: types.CallbackQuery, state: FSMContext, correct
     except Exception as e:
         print(f"Ошибка при удалении сообщений: {e}")
 
+    # Проверяем, выполнено ли 100% квеста и выдаем ачивку, если это так
+    if correct_count == total_questions:
+        async with SessionLocal() as session:
+            achievement_given = await give_achievement(callback.from_user.id, current_quest_id, session)
+            if achievement_given:
+                message_text = (
+                    f"Квест завершен! 🎉\nВерных ответов: {correct_count} из {total_questions}\n"
+                    f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!"
+                )
+            else:
+                message_text = f"Квест завершен! 🎉\nВерных ответов: {correct_count} из {total_questions}"
+    else:
+        message_text = f"Квест завершен! 🎉\nВерных ответов: {correct_count} из {total_questions}"
+
     # Отправляем новое сообщение с результатами
     message = await callback.message.answer(
-        f"Квест завершен! 🎉\nВерных ответов: {correct_count} из {total_questions}",
+        message_text,
         reply_markup=get_quest_finish_keyboard(correct_count, total_questions, current_quest_id)
     )
 
@@ -165,6 +212,7 @@ async def retry_quest(callback: types.CallbackQuery, state: FSMContext):
 
         if user_result:
             user_result.state = "не выполнен"
+            user_result.attempt +=1
             user_result.result = 0  # Обнуляем счетчик верных ответов
             await session.commit()
 
@@ -258,7 +306,11 @@ async def quest_1(callback: types.CallbackQuery, state: FSMContext):
     # # Удаляем предыдущее сообщение, если оно есть
     # if "photo_message_id" in user_data:
     #     await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=user_data["photo_message_id"])
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
 
     photo_path = BASE_DIR / "handlers/media/photo/map1.jpg"
     if not photo_path.exists():
@@ -289,7 +341,7 @@ async def quest_2(callback: types.CallbackQuery, state: FSMContext):
     try:
         photo_message_ids = user_data.get("photo_message_ids", [])
         question_message_id = user_data.get("question_message_id")
-
+        await callback.message.delete()
         for message_id in photo_message_ids:
             await callback.bot.delete_message(callback.message.chat.id, message_id)
         if question_message_id:
@@ -337,7 +389,7 @@ async def quest_3(callback: types.CallbackQuery, state: FSMContext):
     try:
         video_message_ids = user_data.get("video_message_ids", [])
         question_message_id = user_data.get("question_message_id")
-
+        await callback.message.delete()
         for message_id in video_message_ids:
             await callback.bot.delete_message(callback.message.chat.id, message_id)
         if question_message_id:
@@ -385,6 +437,214 @@ async def quest_3(callback: types.CallbackQuery, state: FSMContext):
         print(f"Ошибка при отправке медиагруппы: {e}")
         await callback.message.answer("Произошла ошибка при отправке видео. Попробуйте ещё раз.")
 
+    await callback.answer()
+
+
+
+# Квест 4
+# Верные цифры для квеста 4
+correct_numbers_qw4 = {1, 2, 3, 4, 5}
+
+# Состояния для FSM
+class Quest4State(StatesGroup):
+    waiting_for_clean_photo = State()
+    waiting_for_items_photo = State()
+    waiting_for_dirty_photo = State()
+    waiting_for_selection = State()
+
+# Начало квеста 4
+@router.callback_query(F.data == "start_quest4")
+async def quest_4(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения, если они есть
+    user_data = await state.get_data()
+    try:
+        photo_message_ids = user_data.get("photo_message_ids", [])
+        question_message_id = user_data.get("question_message_id")
+        await callback.message.delete()
+        for message_id in photo_message_ids:
+            await callback.bot.delete_message(callback.message.chat.id, message_id)
+        if question_message_id:
+            await callback.bot.delete_message(callback.message.chat.id, question_message_id)
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Показываем фото "чистой локации"
+    photo_path = BASE_DIR / "handlers/media/photo/clean_location.jpg"
+    clean_photo = FSInputFile(str(photo_path))
+    message = await callback.message.answer_photo(
+        clean_photo,
+        caption="Чистая локация. Нажмите 'Далее', чтобы продолжить.",
+        reply_markup=quest4_keyboard_after_clear()
+    )
+
+    # Сохраняем ID сообщения для последующего удаления
+    await state.update_data(photo_message_ids=[message.message_id])
+    await state.set_state(Quest4State.waiting_for_clean_photo)
+    await callback.answer()
+
+# Показываем фото "предметы, которые не должны находиться на локации"
+@router.callback_query(F.data == "next_to_items", Quest4State.waiting_for_clean_photo)
+async def show_items_photo(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения, если они есть
+    user_data = await state.get_data()
+    try:
+        photo_message_ids = user_data.get("photo_message_ids", [])
+        question_message_id = user_data.get("question_message_id")
+        await callback.message.delete()
+        for message_id in photo_message_ids:
+            await callback.bot.delete_message(callback.message.chat.id, message_id)
+        if question_message_id:
+            await callback.bot.delete_message(callback.message.chat.id, question_message_id)
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Создаем медиагруппу
+    media_group = MediaGroupBuilder(caption="Предметы, которые не должны находиться на локации.")
+
+    # Добавляем фото в медиагруппу
+    for i in range(1, 10):  # Номера от 1 до 9
+        photo_path = BASE_DIR / f"handlers/media/photo/мусор/{i}.jpg"
+        if photo_path.exists():
+            media_group.add_photo(media=FSInputFile(str(photo_path)))
+        else:
+            print(f"Файл {photo_path} не найден!")
+
+    # Отправляем медиагруппу
+    photo_messages = await callback.message.answer_media_group(media=media_group.build())
+    photo_message_ids = [msg.message_id for msg in photo_messages]
+
+    # Отправляем кнопку "Приступить"
+    question_message = await callback.message.answer(
+        "Нажмите 'Приступить', чтобы начать.",
+        reply_markup=quest4_keyboard_after_trash()
+    )
+
+    # Сохраняем ID всех сообщений для последующего удаления
+    await state.update_data(
+        photo_message_ids=photo_message_ids,
+        question_message_id=question_message.message_id
+    )
+    await state.set_state(Quest4State.waiting_for_items_photo)
+    await callback.answer()
+
+# Показываем фото "грязной локации" и клавиатуру для выбора цифр
+@router.callback_query(F.data == "start_selection", Quest4State.waiting_for_items_photo)
+async def show_dirty_location(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения, если они есть
+    user_data = await state.get_data()
+    try:
+        photo_message_ids = user_data.get("photo_message_ids", [])
+        question_message_id = user_data.get("question_message_id")
+        await callback.message.delete()
+        for message_id in photo_message_ids:
+            await callback.bot.delete_message(callback.message.chat.id, message_id)
+        if question_message_id:
+            await callback.bot.delete_message(callback.message.chat.id, question_message_id)
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Показываем фото "грязной локации"
+    photo_path = BASE_DIR / "handlers/media/photo/dirty_location.jpg"
+    dirty_photo = FSInputFile(str(photo_path))
+    message = await callback.message.answer_photo(
+        dirty_photo,
+        caption="Выбери цифры, которые НЕ соответствуют 'Чистой локации'."
+    )
+
+    # Отправляем клавиатуру для выбора цифр
+    question_message = await callback.message.answer(
+        "Выбери цифры:",
+        reply_markup=quest4_keyboard(set())
+    )
+
+    # Сохраняем ID всех сообщений для последующего удаления
+    await state.update_data(
+        photo_message_ids=[message.message_id],
+        question_message_id=question_message.message_id
+    )
+    await state.set_state(Quest4State.waiting_for_selection)
+    await callback.answer()
+
+# Обработчик выбора цифр
+@router.callback_query(F.data.startswith("select_"), Quest4State.waiting_for_selection)
+async def handle_number_selection(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    selected_numbers = user_data.get("selected_numbers", set())
+
+    number = int(callback.data.split("_")[1])
+    if number in selected_numbers:
+        selected_numbers.remove(number)  # Убираем цифру, если она уже выбрана
+    else:
+        selected_numbers.add(number)  # Добавляем цифру, если она не выбрана
+
+    await state.update_data(selected_numbers=selected_numbers)
+    await callback.message.edit_reply_markup(reply_markup=quest4_keyboard(selected_numbers))
+    await callback.answer()
+
+# Обработчик нажатия "Готово"
+@router.callback_query(F.data == "done", Quest4State.waiting_for_selection)
+async def handle_done(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    selected_numbers = user_data.get("selected_numbers", set())
+
+    # Проверяем выбранные цифры
+    correct_selected = selected_numbers.intersection(correct_numbers_qw4)
+    incorrect_selected = selected_numbers.difference(correct_numbers_qw4)
+    missed_numbers = correct_numbers_qw4.difference(selected_numbers)
+
+    # Формируем текст результата
+    result_text = (
+        f"Вы выбрали: {', '.join(map(str, selected_numbers)) or 'ничего'}\n"
+        f"Верные цифры: {', '.join(map(str, correct_numbers_qw4))}\n\n"
+    )
+    if correct_selected:
+        result_text += f"✅ Правильно выбраны: {', '.join(map(str, correct_selected))}\n"
+    if incorrect_selected:
+        result_text += f"❌ Неправильно выбраны: {', '.join(map(str, incorrect_selected))}\n"
+    if missed_numbers:
+        result_text += f"⚠️ Пропущены: {', '.join(map(str, missed_numbers))}\n"
+
+    # Сохраняем результат в базу данных
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 4  # ID квеста 4
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=4,
+                state="не выполнен",
+                attempt=1,
+                result=len(correct_selected)
+            )
+            session.add(user_result)
+        else:
+            user_result.result = len(correct_selected)
+            if len(correct_selected) == len(correct_numbers_qw4):
+                user_result.state = "выполнен"
+
+        await session.commit()
+
+    # Удаляем предыдущие сообщения
+    try:
+        photo_message_ids = user_data.get("photo_message_ids", [])
+        question_message_id = user_data.get("question_message_id")
+        await callback.message.delete()
+        for message_id in photo_message_ids:
+            await callback.bot.delete_message(callback.message.chat.id, message_id)
+        if question_message_id:
+            await callback.bot.delete_message(callback.message.chat.id, question_message_id)
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Отправляем результат пользователю
+    await callback.message.answer(result_text)
+    await state.clear()
     await callback.answer()
 
 
@@ -439,6 +699,7 @@ async def handle_quest1_answer(callback: types.CallbackQuery, state: FSMContext)
     # Переход к следующему вопросу или завершение квеста
     current_question += 1
     if current_question > len(correct_answers):
+        await callback.message.delete()
         await finish_quest(callback, state, correct_count, len(correct_answers), current_quest_id)
     else:
         await state.update_data(current_question=current_question)
@@ -493,6 +754,7 @@ async def handle_quest2_answer(callback: types.CallbackQuery, state: FSMContext)
 
     current_question += 1
     if current_question > len(correct_answers_qw2):
+        await callback.message.delete()
         await finish_quest(callback, state, correct_count, len(correct_answers_qw2), current_quest_id)
     else:
         await state.update_data(current_question=current_question)
@@ -593,9 +855,16 @@ async def handle_quest3_answer(callback: types.CallbackQuery, state: FSMContext)
     # Переход к следующему вопросу или завершение квеста
     current_question += 1
     if current_question > len(correct_answers_qw3):
+        await callback.message.delete()
         await finish_quest(callback, state, correct_count, len(correct_answers_qw3), current_quest_id)
     else:
         await state.update_data(current_question=current_question)
         await ask_quest3_question(callback, state)  # Задаём следующий вопрос
 
     await callback.answer()
+
+# Обработчик для всех остальных ответов
+@router.callback_query(QuestState.waiting_for_answer)
+async def handle_other_answers(callback: types.CallbackQuery):
+    # Уведомляем пользователя, что ответ неверный
+    await callback.answer("Ответ неверный. Попробуйте ещё раз!")
