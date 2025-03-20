@@ -30,7 +30,7 @@ class User(Base):
     full_name = Column(String, nullable=False)
     age = Column(Integer, nullable=False)
     gender = Column(String, nullable=False)
-    level = Column(Integer, default=1)
+    level = Column(Integer, default=0)
     last_achievement = Column(String, default="")
     day = Column(Integer, default=1)
     profile = relationship("UserProfile", back_populates="user", uselist=False)  # Один-к-одному
@@ -55,7 +55,7 @@ class Achievement(Base):
 class Moderation(Base):
     __tablename__ = "moderation"
     id = Column(Integer, primary_key=True)
-    task_id = Column(Integer, ForeignKey("tasks.id"))  # Связь с task
+    task_id = Column(Integer)  # Связь с task
     status = Column(String, default="pending")  # approved, rejected
     user_id = Column(BigInteger, ForeignKey("users.telegram_id"))  # Связь с User по telegram_id
     #timestamp = Column(DateTime, default=func.now())

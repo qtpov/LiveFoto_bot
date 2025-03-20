@@ -53,23 +53,25 @@ async def add_user(
         await session.rollback()  # Откатываем транзакцию в случае других ошибок
         raise ValueError(f"Произошла ошибка при добавлении пользователя: {e}")
 
-async def give_achievement(session: AsyncSession, user_id: int, name: str, description: str):
-    achievement = Achievement(user_id=user_id, name=name, description=description)
-    session.add(achievement)
-    await session.commit()
+# async def give_achievement(session: AsyncSession, user_id: int, name: str, description: str):
+#     achievement = Achievement(user_id=user_id, name=name, description=description)
+#     session.add(achievement)
+#     await session.commit()
 
-
-async def get_tasks(db: AsyncSession, day: int):
-    """
-    Получает задачи, сгруппированные по quest_id, для указанного дня.
-    """
-    stmt = (
-        select(Task.quest_id, Task.title)
-        .where(Task.day == day)  # Фильтруем по дню
-        .group_by(Task.quest_id, Task.title)  # Группируем по quest_id и title
+async def update_user_level(user_id: int, session):
+    user = await session.execute(
+        select(User).filter(User.telegram_id == user_id)
     )
-    result = await db.execute(stmt)
-    return result.all()
+    user = user.scalars().first()
+
+    if not user:
+        return
+    else:
+        user.level += 1
+        await session.commit()
+
+
+
 
 async def get_user_results(db: AsyncSession, user_id: int):
     """

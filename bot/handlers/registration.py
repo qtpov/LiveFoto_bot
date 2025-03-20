@@ -3,7 +3,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from bot.db.session import SessionLocal
-from bot.db.crud import add_user
+from bot.db.models import Achievement
+from sqlalchemy.future import select
+from bot.db.crud import add_user, update_user_level
 from bot.keyboards.inline import go_profile_keyboard
 import logging
 from datetime import datetime
@@ -119,32 +121,44 @@ async def process_gender(callback: types.CallbackQuery, state: FSMContext, bot):
     await callback.answer()
 
 # Обработка согласия на обработку данных
+async def add_achievement_if_not_exists(session, user_id, name, description):
+    achievement = await session.execute(
+        select(Achievement).filter(
+            Achievement.user_id == user_id,
+            Achievement.name == name
+        )
+    )
+    achievement = achievement.scalars().first()
+
+    if not achievement:
+        new_achievement = Achievement(
+            name=name,
+            description=description,
+            user_id=user_id
+        )
+        session.add(new_achievement)
+        await session.commit()
+
 @router.callback_query(ProfileForm.personal_data_consent, F.data == "consent_yes")
 async def process_personal_data_consent(callback: types.CallbackQuery, state: FSMContext, bot):
-
     await callback.message.delete()
-    # Получаем данные из состояния
     data = await state.get_data()
 
-    # Проверяем, есть ли дата рождения
     if "birth_date" not in data:
         await callback.message.answer("Ошибка: Дата рождения не указана.")
         return
 
-    # Рассчитываем возраст на основе даты рождения
     try:
-        birth_date = datetime.strptime(data["birth_date"], "%d.%m.%Y")  # Формат ДД.ММ.ГГГГ
+        birth_date = datetime.strptime(data["birth_date"], "%d.%m.%Y")
         today = datetime.today()
         age = today.year - birth_date.year
 
-        # Корректируем возраст, если день рождения еще не наступил в этом году
         if (today.month, today.day) < (birth_date.month, birth_date.day):
             age -= 1
     except ValueError:
         await callback.message.answer("Ошибка: Неверный формат даты рождения. Используйте формат ДД.ММ.ГГГГ.")
         return
 
-    # Подготавливаем данные для профиля
     profile_data = {
         "full_name": data["full_name"],
         "birth_date": data["birth_date"],
@@ -152,18 +166,26 @@ async def process_personal_data_consent(callback: types.CallbackQuery, state: FS
         "personal_data_consent": True
     }
 
-    # Сохраняем пользователя и профиль в базу данных
     async with SessionLocal() as session:
         try:
-            # Создаем пользователя и профиль
             user = await add_user(
                 session,
                 telegram_id=callback.from_user.id,
                 full_name=data["full_name"],
-                age=age,  # Рассчитанный возраст
-                gender=data["gender"],  # Пол, который был запрошен ранее
+                age=age,
+                gender=data["gender"],
                 profile_data=profile_data
             )
+            await update_user_level(callback.from_user.id, session)
+
+            # Добавляем ачивку, если ее нет
+            await add_achievement_if_not_exists(
+                session,
+                callback.from_user.id,
+                '🏆 Добро пожаловать в команду!',
+                'Вы успешно прошли регистрацию'
+            )
+
             await callback.message.answer("Спасибо! Ваша анкета успешно сохранена.", reply_markup=go_profile_keyboard())
         except ValueError as e:
             await callback.message.answer(f"Ошибка: {e}")
@@ -171,6 +193,5 @@ async def process_personal_data_consent(callback: types.CallbackQuery, state: FS
             await callback.message.answer("Произошла ошибка при сохранении данных. Пожалуйста, попробуйте позже.")
             logging.error(f"Ошибка при сохранении данных: {e}")
 
-    # Очищаем состояние
     await state.clear()
     await callback.answer()

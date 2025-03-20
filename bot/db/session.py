@@ -6,7 +6,7 @@ import dotenv
 # Загружаем переменные из .env
 dotenv.load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:pa$$word@localhost/livefoto")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:pa$$word@localhost/Photo_bot")
 
 # Настройка SQLAlchemy
 engine: AsyncEngine = create_async_engine(DATABASE_URL, echo=True)

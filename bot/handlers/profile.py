@@ -40,6 +40,7 @@ async def show_profile(user_id: int, message_or_callback: types.Message | types.
             f'🧑‍💻 *Профиль героя*\n\n'
             f'👤 ФИО: {user.full_name}\n'
             f'🎂 Возраст: {user.age}\n'
+            f'💡 Уровень: {user.level}\n'
             f'🏆 Последняя ачивка: {achievement_text}\n'
             f'📅 День: {user.day}'
         )

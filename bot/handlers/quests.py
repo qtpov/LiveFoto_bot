@@ -1,7 +1,5 @@
 from aiogram import Router, types, F
-from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
-from aiogram.types import KeyboardButton, FSInputFile
-from aiogram.filters import Command
+from aiogram.types import  FSInputFile
 from bot.db.models import UserResult, User, Achievement
 from aiogram.fsm.context import FSMContext
 from bot.keyboards.inline import *
@@ -10,6 +8,7 @@ from sqlalchemy.future import select
 from bot.db.session import SessionLocal
 from aiogram.utils.media_group import MediaGroupBuilder
 from pathlib import Path
+from bot.db.crud import update_user_level
 from random import randint
 import os
 
@@ -122,22 +121,81 @@ def get_quest_finish_keyboard(correct_count, total_questions, current_quest_id):
         ))
     return builder.as_markup()
 
+# Словарь с ачивками для каждого квеста
+achievements_text = {
+    1: {
+        "name": "🗺️ Я тут всё знаю!",
+        "description": "Вы успешно выполнили квест 'Знакомство с локацией'!"
+    },
+    2: {
+        "name": "📸 Лучший ракурс!",
+        "description": "Вы успешно выполнили квест 'Места для фоток'!"
+    },
+    3: {
+        "name": "🗂️ Свой среди своих!",
+        "description": "Вы успешно выполнили квест 'Знакомство с базой'!"
+    },
+    4: {
+        "name": "✨ Чисто, как в объективе!",
+        "description": "Вы успешно выполнили квест 'Чистота на локации'!"
+    },
+    5: {
+        "name": "🎯 Секретные точки!",
+        "description": "Вы успешно выполнили квест 'Места для фото 2.0'!"
+    },
+    6: {
+        "name": "🤳  Первый кадр!",
+        "description": "Вы успешно выполнили квест 'Фото с клиентом'!"
+    },
+    7: {
+        "name": "✨ Чисто, как в объективе!",
+        "description": "Вы успешно выполнили квест 'Чистота на локации'!"
+    },
+    8: {
+        "name": "💰 Знаю, что продать!",
+        "description": "Вы успешно выполнили квест 'Товары и цены'!"
+    },
+    9: {
+        "name": "🎓 Маркетолог от природы!",
+        "description": "Вы успешно выполнили квест 'Теория продаж'!"
+    },
+    10: {
+        "name": "🤝 Теперь нас больше!",
+        "description": "Вы успешно выполнили квест 'Знакомство с коллегами'!"
+    },
+    10: {
+        "name": "👔 Стиль – моё второе имя!",
+        "description": "Вы успешно выполнили квест 'Внешний вид'!"
+    },
+    11: {
+        "name": "🗣️ Голос дня!",
+        "description": "Вы успешно выполнили квест 'Фидбек'!"
+    },
+
+    # Добавьте остальные ачивки по аналогии
+}
+
+
+# Функция для обновления уровня пользователя
+
+
+# Функция для выдачи ачивки
 async def give_achievement(user_id: int, quest_id: int, session):
-    # Проверяем, выполнено ли 100% квеста
-    user_result = await session.execute(
-        select(UserResult).filter(
-            UserResult.user_id == user_id,
-            UserResult.quest_id == quest_id
-        )
-    )
-    user_result = user_result.scalars().first()
+    # # Проверяем, выполнено ли 100% квеста
+    # user_result = await session.execute(
+    #     select(UserResult).filter(
+    #         UserResult.user_id == user_id,
+    #         UserResult.quest_id == quest_id
+    #     )
+    # )
+    # user_result = user_result.scalars().first()
 
 
     # Проверяем, есть ли уже такая ачивка у пользователя
     achievement = await session.execute(
         select(Achievement).filter(
             Achievement.user_id == user_id,
-            Achievement.name == f"Квест {quest_id} выполнен на 100%"
+            Achievement.name == achievements_text[quest_id]["name"]
         )
     )
     achievement = achievement.scalars().first()
@@ -145,14 +203,15 @@ async def give_achievement(user_id: int, quest_id: int, session):
     if not achievement:
         # Добавляем ачивку с описанием
         new_achievement = Achievement(
-            name=f"Квест {quest_id} выполнен на 100%",
-            description=f"Вы успешно выполнили все задания квеста {quest_id} без ошибок!",
+            name=achievements_text[quest_id]["name"],
+            description=achievements_text[quest_id]["description"],
             user_id=user_id
         )
         session.add(new_achievement)
         await session.commit()
         return True
 
+    return False
 
 # Функция для завершения квеста
 async def finish_quest(callback: types.CallbackQuery, state: FSMContext, correct_count, total_questions, current_quest_id):
@@ -257,16 +316,64 @@ async def next_quest(callback: types.CallbackQuery, state: FSMContext):
         await state.clear()
     await callback.answer()
 
+# Функция для вывода списка квестов
+async def show_today_quests(callback: types.CallbackQuery, state: FSMContext):
+    user_id = callback.from_user.id
+    current_day = await get_current_day(user_id)
+
+    if not current_day:
+        await callback.message.answer("Ты ещё не зарегистрирован! Напиши /start.")
+        return
+
+    async with SessionLocal() as session:
+        # Получаем квесты на сегодня
+        quests_today = quests_by_day.get(current_day, [])
+        user_results = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == user_id,
+                UserResult.quest_id.in_([quest[0] for quest in quests_today])
+            )
+        )
+        user_results = user_results.scalars().all()
+        user_results_dict = {result.quest_id: result for result in user_results}
+
+        # Формируем текст с квестами и их статусами
+        quests_text = "📋 Квесты на сегодня:\n"
+        for quest_id, quest_name in quests_today:
+            status = "Не выполнен"
+            if quest_id in user_results_dict:
+                if user_results_dict[quest_id].state == "выполнен":
+                    status = "✅ Выполнен"
+            quests_text += f"{quest_id}. {quest_name} — {status}\n"
+
+        # Отправляем сообщение с квестами
+        await callback.message.edit_text(quests_text, reply_markup=quests_list_keyboard())
+
+# Клавиатура для списка квестов
+def quests_list_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.add(types.InlineKeyboardButton(
+        text="Начать квесты",
+        callback_data="start_quests_confirm"
+    ))
+    return builder.as_markup()
+
+
+# Обработчик кнопки "Квесты"
+@router.callback_query(F.data == "quests")
+async def handle_quests_button(callback: types.CallbackQuery, state: FSMContext):
+    # Показываем список квестов на сегодня
+    await show_today_quests(callback, state)
+    await callback.answer()
 # Общая функция для запуска квестов
 async def start_quest(callback: types.CallbackQuery, state: FSMContext, quest_id: int):
     await state.set_state(QuestState.waiting_for_answer)
     await state.update_data(current_question=1, correct_count=0, current_quest_id=quest_id)
     await globals()[f"quest_{quest_id}"](callback, state)
 
-
-# Обработчик для начала квестов
-@router.callback_query(F.data == "quests")
-async def start_quests(callback: types.CallbackQuery, state: FSMContext):
+# Обработчик кнопки "Начать квесты"
+@router.callback_query(F.data == "start_quests_confirm")
+async def start_quests_confirm(callback: types.CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
     current_day = await get_current_day(user_id)
 
@@ -285,6 +392,7 @@ async def start_quests(callback: types.CallbackQuery, state: FSMContext):
         user_results = user_results.scalars().all()
         user_results_dict = {result.quest_id: result for result in user_results}
 
+        # Находим первый невыполненный квест
         first_uncompleted_quest = None
         for quest_id, _ in quests_today:
             if quest_id not in user_results_dict or user_results_dict[quest_id].state != "выполнен":
@@ -295,8 +403,43 @@ async def start_quests(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer("Все квесты на сегодня выполнены! 🎉")
             return
 
+        # Начинаем первый невыполненный квест
         await start_quest(callback, state, first_uncompleted_quest)
     await callback.answer()
+
+
+# @router.callback_query(F.data == "quests")
+# async def start_quests(callback: types.CallbackQuery, state: FSMContext):
+#     user_id = callback.from_user.id
+#     current_day = await get_current_day(user_id)
+#
+#     if not current_day:
+#         await callback.message.answer("Ты ещё не зарегистрирован! Напиши /start.")
+#         return
+#
+#     async with SessionLocal() as session:
+#         quests_today = quests_by_day.get(current_day, [])
+#         user_results = await session.execute(
+#             select(UserResult).filter(
+#                 UserResult.user_id == user_id,
+#                 UserResult.quest_id.in_([quest[0] for quest in quests_today])
+#             )
+#         )
+#         user_results = user_results.scalars().all()
+#         user_results_dict = {result.quest_id: result for result in user_results}
+#
+#         first_uncompleted_quest = None
+#         for quest_id, _ in quests_today:
+#             if quest_id not in user_results_dict or user_results_dict[quest_id].state != "выполнен":
+#                 first_uncompleted_quest = quest_id
+#                 break
+#
+#         if first_uncompleted_quest is None:
+#             await callback.message.answer("Все квесты на сегодня выполнены! 🎉")
+#             return
+#
+#         await start_quest(callback, state, first_uncompleted_quest)
+#     await callback.answer()
 
 # Квест 1
 async def quest_1(callback: types.CallbackQuery, state: FSMContext):
@@ -578,31 +721,23 @@ async def handle_number_selection(callback: types.CallbackQuery, state: FSMConte
         selected_numbers.add(number)  # Добавляем цифру, если она не выбрана
 
     await state.update_data(selected_numbers=selected_numbers)
-    await callback.message.edit_reply_markup(reply_markup=quest4_keyboard(selected_numbers))
+    new_keyboard = quest4_keyboard(selected_numbers)
+    if callback.message.reply_markup != new_keyboard:
+        await callback.message.edit_reply_markup(reply_markup=new_keyboard)
+
     await callback.answer()
 
-# Обработчик нажатия "Готово"
+# Обработчик нажатия "Готово" квест 4
 @router.callback_query(F.data == "done", Quest4State.waiting_for_selection)
 async def handle_done(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.delete()
     user_data = await state.get_data()
     selected_numbers = user_data.get("selected_numbers", set())
 
     # Проверяем выбранные цифры
     correct_selected = selected_numbers.intersection(correct_numbers_qw4)
-    incorrect_selected = selected_numbers.difference(correct_numbers_qw4)
-    missed_numbers = correct_numbers_qw4.difference(selected_numbers)
-
-    # Формируем текст результата
-    result_text = (
-        f"Вы выбрали: {', '.join(map(str, selected_numbers)) or 'ничего'}\n"
-        f"Верные цифры: {', '.join(map(str, correct_numbers_qw4))}\n\n"
-    )
-    if correct_selected:
-        result_text += f"✅ Правильно выбраны: {', '.join(map(str, correct_selected))}\n"
-    if incorrect_selected:
-        result_text += f"❌ Неправильно выбраны: {', '.join(map(str, incorrect_selected))}\n"
-    if missed_numbers:
-        result_text += f"⚠️ Пропущены: {', '.join(map(str, missed_numbers))}\n"
+    correct_count = len(correct_selected)  # Количество правильных ответов
+    total_questions = len(correct_numbers_qw4)  # Общее количество вопросов
 
     # Сохраняем результат в базу данных
     async with SessionLocal() as session:
@@ -620,32 +755,22 @@ async def handle_done(callback: types.CallbackQuery, state: FSMContext):
                 quest_id=4,
                 state="не выполнен",
                 attempt=1,
-                result=len(correct_selected)
+                result=correct_count
             )
             session.add(user_result)
         else:
-            user_result.result = len(correct_selected)
-            if len(correct_selected) == len(correct_numbers_qw4):
+            user_result.result = correct_count
+            if correct_count == total_questions:
                 user_result.state = "выполнен"
 
         await session.commit()
+        # Обновляем уровень пользователя
+        await update_user_level(callback.from_user.id, session)
 
-    # Удаляем предыдущие сообщения
-    try:
-        photo_message_ids = user_data.get("photo_message_ids", [])
-        question_message_id = user_data.get("question_message_id")
-        await callback.message.delete()
-        for message_id in photo_message_ids:
-            await callback.bot.delete_message(callback.message.chat.id, message_id)
-        if question_message_id:
-            await callback.bot.delete_message(callback.message.chat.id, question_message_id)
-    except Exception as e:
-        print(f"Ошибка при удалении сообщений: {e}")
-
-    # Отправляем результат пользователю
-    await callback.message.answer(result_text)
-    await state.clear()
+    # Вызываем общую функцию завершения квеста
+    await finish_quest(callback, state, correct_count, total_questions, 4)  # 4 — ID квеста
     await callback.answer()
+
 
 
 # Обработчик ответов для квеста 1
@@ -756,6 +881,7 @@ async def handle_quest2_answer(callback: types.CallbackQuery, state: FSMContext)
     if current_question > len(correct_answers_qw2):
         await callback.message.delete()
         await finish_quest(callback, state, correct_count, len(correct_answers_qw2), current_quest_id)
+        await update_user_level(callback.from_user.id, session)
     else:
         await state.update_data(current_question=current_question)
         await quest_2(callback, state)
@@ -839,6 +965,7 @@ async def handle_quest3_answer(callback: types.CallbackQuery, state: FSMContext)
         if callback.data == correct_answers_qw3[current_question]:
             correct_count += 1
             user_result.result += 1
+            await session.commit()  # Сохраняем изменение результата в БД
             await callback.answer('Верный ответ!')
         else:
             await callback.answer('Ответ неверный.')
@@ -846,8 +973,7 @@ async def handle_quest3_answer(callback: types.CallbackQuery, state: FSMContext)
         # Если все вопросы пройдены, отмечаем квест как выполненный
         if current_question == len(correct_answers_qw3):
             user_result.state = "выполнен"
-
-        await session.commit()
+            await session.commit()  # Финальный коммит после завершения квеста
 
     # Обновляем состояние FSM
     await state.update_data(correct_count=correct_count)
@@ -857,11 +983,13 @@ async def handle_quest3_answer(callback: types.CallbackQuery, state: FSMContext)
     if current_question > len(correct_answers_qw3):
         await callback.message.delete()
         await finish_quest(callback, state, correct_count, len(correct_answers_qw3), current_quest_id)
+        await session.commit()
     else:
         await state.update_data(current_question=current_question)
         await ask_quest3_question(callback, state)  # Задаём следующий вопрос
 
     await callback.answer()
+
 
 # Обработчик для всех остальных ответов
 @router.callback_query(QuestState.waiting_for_answer)

@@ -53,7 +53,7 @@ async def get_achievements(msg: types.Message | types.CallbackQuery, page: int =
 
             # Формируем текст с ачивками
             achievements_text = "\n".join(
-                [f"🏆 {hbold(a.name)}\n{hitalic(a.description)}\n" for a in achievements_page]
+                [f" {hbold(a.name)}\n{hitalic(a.description)}\n" for a in achievements_page]
             )
             response_text = f"Ваши ачивки (страница {page}):\n{achievements_text}"
 
