@@ -6,13 +6,19 @@ from bot.keyboards.inline import *
 from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy.future import select
 from bot.db.session import SessionLocal
-from aiogram.utils.media_group import MediaGroupBuilder
+from aiogram.utils.media_group import MediaGroupBuilder,InputMediaPhoto
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from pathlib import Path
+from .moderation import give_achievement, get_quest_finish_keyboard
 from bot.db.crud import update_user_level
+import datetime
 from random import randint
 import os
+from .states import QuestState
 
 router = Router()
+
+admin_chat_id = "693131022"
 
 # Словарь с распределением квестов по дням
 quests_by_day = {
@@ -93,9 +99,6 @@ correct_answers_qw3 = {
 # Базовый путь к проекту
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Состояния для FSM
-class QuestState(StatesGroup):
-    waiting_for_answer = State()
 
 # Получение текущего дня пользователя
 async def get_current_day(user_id: int):
@@ -106,112 +109,8 @@ async def get_current_day(user_id: int):
             return None
         return user.day
 
-# Функция для создания клавиатуры с кнопками "Переделать" и "Далее"
-def get_quest_finish_keyboard(correct_count, total_questions, current_quest_id):
-    builder = InlineKeyboardBuilder()
-    if correct_count < total_questions:
-        builder.add(types.InlineKeyboardButton(
-            text="Переделать",
-            callback_data=f"retry_quest_{current_quest_id}"
-        ))
-    else:
-        builder.add(types.InlineKeyboardButton(
-            text="Далее",
-            callback_data=f"next_quest_{current_quest_id}"
-        ))
-    return builder.as_markup()
-
-# Словарь с ачивками для каждого квеста
-achievements_text = {
-    1: {
-        "name": "🗺️ Я тут всё знаю!",
-        "description": "Вы успешно выполнили квест 'Знакомство с локацией'!"
-    },
-    2: {
-        "name": "📸 Лучший ракурс!",
-        "description": "Вы успешно выполнили квест 'Места для фоток'!"
-    },
-    3: {
-        "name": "🗂️ Свой среди своих!",
-        "description": "Вы успешно выполнили квест 'Знакомство с базой'!"
-    },
-    4: {
-        "name": "✨ Чисто, как в объективе!",
-        "description": "Вы успешно выполнили квест 'Чистота на локации'!"
-    },
-    5: {
-        "name": "🎯 Секретные точки!",
-        "description": "Вы успешно выполнили квест 'Места для фото 2.0'!"
-    },
-    6: {
-        "name": "🤳  Первый кадр!",
-        "description": "Вы успешно выполнили квест 'Фото с клиентом'!"
-    },
-    7: {
-        "name": "✨ Чисто, как в объективе!",
-        "description": "Вы успешно выполнили квест 'Чистота на локации'!"
-    },
-    8: {
-        "name": "💰 Знаю, что продать!",
-        "description": "Вы успешно выполнили квест 'Товары и цены'!"
-    },
-    9: {
-        "name": "🎓 Маркетолог от природы!",
-        "description": "Вы успешно выполнили квест 'Теория продаж'!"
-    },
-    10: {
-        "name": "🤝 Теперь нас больше!",
-        "description": "Вы успешно выполнили квест 'Знакомство с коллегами'!"
-    },
-    10: {
-        "name": "👔 Стиль – моё второе имя!",
-        "description": "Вы успешно выполнили квест 'Внешний вид'!"
-    },
-    11: {
-        "name": "🗣️ Голос дня!",
-        "description": "Вы успешно выполнили квест 'Фидбек'!"
-    },
-
-    # Добавьте остальные ачивки по аналогии
-}
 
 
-# Функция для обновления уровня пользователя
-
-
-# Функция для выдачи ачивки
-async def give_achievement(user_id: int, quest_id: int, session):
-    # # Проверяем, выполнено ли 100% квеста
-    # user_result = await session.execute(
-    #     select(UserResult).filter(
-    #         UserResult.user_id == user_id,
-    #         UserResult.quest_id == quest_id
-    #     )
-    # )
-    # user_result = user_result.scalars().first()
-
-
-    # Проверяем, есть ли уже такая ачивка у пользователя
-    achievement = await session.execute(
-        select(Achievement).filter(
-            Achievement.user_id == user_id,
-            Achievement.name == achievements_text[quest_id]["name"]
-        )
-    )
-    achievement = achievement.scalars().first()
-
-    if not achievement:
-        # Добавляем ачивку с описанием
-        new_achievement = Achievement(
-            name=achievements_text[quest_id]["name"],
-            description=achievements_text[quest_id]["description"],
-            user_id=user_id
-        )
-        session.add(new_achievement)
-        await session.commit()
-        return True
-
-    return False
 
 # Функция для завершения квеста
 async def finish_quest(callback: types.CallbackQuery, state: FSMContext, correct_count, total_questions, current_quest_id):
@@ -344,6 +243,8 @@ async def show_today_quests(callback: types.CallbackQuery, state: FSMContext):
             if quest_id in user_results_dict:
                 if user_results_dict[quest_id].state == "выполнен":
                     status = "✅ Выполнен"
+                if user_results_dict[quest_id].state == "на модерации":
+                    status = "🕒 На модерации"
             quests_text += f"{quest_id}. {quest_name} — {status}\n"
 
         # Отправляем сообщение с квестами
@@ -406,40 +307,6 @@ async def start_quests_confirm(callback: types.CallbackQuery, state: FSMContext)
         # Начинаем первый невыполненный квест
         await start_quest(callback, state, first_uncompleted_quest)
     await callback.answer()
-
-
-# @router.callback_query(F.data == "quests")
-# async def start_quests(callback: types.CallbackQuery, state: FSMContext):
-#     user_id = callback.from_user.id
-#     current_day = await get_current_day(user_id)
-#
-#     if not current_day:
-#         await callback.message.answer("Ты ещё не зарегистрирован! Напиши /start.")
-#         return
-#
-#     async with SessionLocal() as session:
-#         quests_today = quests_by_day.get(current_day, [])
-#         user_results = await session.execute(
-#             select(UserResult).filter(
-#                 UserResult.user_id == user_id,
-#                 UserResult.quest_id.in_([quest[0] for quest in quests_today])
-#             )
-#         )
-#         user_results = user_results.scalars().all()
-#         user_results_dict = {result.quest_id: result for result in user_results}
-#
-#         first_uncompleted_quest = None
-#         for quest_id, _ in quests_today:
-#             if quest_id not in user_results_dict or user_results_dict[quest_id].state != "выполнен":
-#                 first_uncompleted_quest = quest_id
-#                 break
-#
-#         if first_uncompleted_quest is None:
-#             await callback.message.answer("Все квесты на сегодня выполнены! 🎉")
-#             return
-#
-#         await start_quest(callback, state, first_uncompleted_quest)
-#     await callback.answer()
 
 # Квест 1
 async def quest_1(callback: types.CallbackQuery, state: FSMContext):
@@ -588,13 +455,6 @@ async def quest_3(callback: types.CallbackQuery, state: FSMContext):
 # Верные цифры для квеста 4
 correct_numbers_qw4 = {1, 2, 3, 4, 5}
 
-# Состояния для FSM
-class Quest4State(StatesGroup):
-    waiting_for_clean_photo = State()
-    waiting_for_items_photo = State()
-    waiting_for_dirty_photo = State()
-    waiting_for_selection = State()
-
 # Начало квеста 4
 @router.callback_query(F.data == "start_quest4")
 async def quest_4(callback: types.CallbackQuery, state: FSMContext):
@@ -622,11 +482,11 @@ async def quest_4(callback: types.CallbackQuery, state: FSMContext):
 
     # Сохраняем ID сообщения для последующего удаления
     await state.update_data(photo_message_ids=[message.message_id])
-    await state.set_state(Quest4State.waiting_for_clean_photo)
+    await state.set_state(QuestState.waiting_for_clean_photo)
     await callback.answer()
 
 # Показываем фото "предметы, которые не должны находиться на локации"
-@router.callback_query(F.data == "next_to_items", Quest4State.waiting_for_clean_photo)
+@router.callback_query(F.data == "next_to_items", QuestState.waiting_for_clean_photo)
 async def show_items_photo(callback: types.CallbackQuery, state: FSMContext):
     # Удаляем предыдущие сообщения, если они есть
     user_data = await state.get_data()
@@ -667,11 +527,11 @@ async def show_items_photo(callback: types.CallbackQuery, state: FSMContext):
         photo_message_ids=photo_message_ids,
         question_message_id=question_message.message_id
     )
-    await state.set_state(Quest4State.waiting_for_items_photo)
+    await state.set_state(QuestState.waiting_for_items_photo)
     await callback.answer()
 
 # Показываем фото "грязной локации" и клавиатуру для выбора цифр
-@router.callback_query(F.data == "start_selection", Quest4State.waiting_for_items_photo)
+@router.callback_query(F.data == "start_selection", QuestState.waiting_for_items_photo)
 async def show_dirty_location(callback: types.CallbackQuery, state: FSMContext):
     # Удаляем предыдущие сообщения, если они есть
     user_data = await state.get_data()
@@ -705,46 +565,59 @@ async def show_dirty_location(callback: types.CallbackQuery, state: FSMContext):
         photo_message_ids=[message.message_id],
         question_message_id=question_message.message_id
     )
-    await state.set_state(Quest4State.waiting_for_selection)
+    await state.set_state(QuestState.waiting_for_selection)
     await callback.answer()
 
-# Обработчик выбора цифр
-@router.callback_query(F.data.startswith("select_"), Quest4State.waiting_for_selection)
-async def handle_number_selection(callback: types.CallbackQuery, state: FSMContext):
+
+# Квест 5
+async def quest_5(callback: types.CallbackQuery, state: FSMContext):
+    # Очищаем предыдущие фото
+    await state.update_data(photos=[], photo_message_id=None)
+
+
     user_data = await state.get_data()
-    selected_numbers = user_data.get("selected_numbers", set())
 
-    number = int(callback.data.split("_")[1])
-    if number in selected_numbers:
-        selected_numbers.remove(number)  # Убираем цифру, если она уже выбрана
-    else:
-        selected_numbers.add(number)  # Добавляем цифру, если она не выбрана
+    # Удаляем предыдущие сообщения, если они есть
+    try:
+        photo_message_ids = user_data.get("photo_message_ids", [])
+        question_message_id = user_data.get("question_message_id")
+        await callback.message.delete()
+        for message_id in photo_message_ids:
+            await callback.bot.delete_message(callback.message.chat.id, message_id)
+        if question_message_id:
+            await callback.bot.delete_message(callback.message.chat.id, question_message_id)
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
 
-    await state.update_data(selected_numbers=selected_numbers)
-    new_keyboard = quest4_keyboard(selected_numbers)
-    if callback.message.reply_markup != new_keyboard:
-        await callback.message.edit_reply_markup(reply_markup=new_keyboard)
+    photo_path = BASE_DIR / "handlers/media/photo/map2.jpg"
+    if not photo_path.exists():
+        await callback.message.answer("Файл с изображением не найден.")
+        return
 
+    photo = FSInputFile(str(photo_path))
+
+    # Отправляем новое сообщение с фото
+    message = await callback.message.answer_photo(
+        photo,
+        caption=f"Квест 5:\n"
+                f"Перед тобой карта парка, сделай фото своих коллег на каждой фото зоне во время работы в локации"
+                f", как все фото будут готовы нажим кнопку 'Готово'",
+        reply_markup=quest5_keyboard()
+    )
+    await state.update_data(photo_message_id=message.message_id, photos=[])
     await callback.answer()
 
-# Обработчик нажатия "Готово" квест 4
-@router.callback_query(F.data == "done", Quest4State.waiting_for_selection)
-async def handle_done(callback: types.CallbackQuery, state: FSMContext):
+
+# В функции collect_photos (квест 5) изменим состояние:
+@router.callback_query(F.data == "start_qw5")
+async def collect_photos(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.delete()
-    user_data = await state.get_data()
-    selected_numbers = user_data.get("selected_numbers", set())
-
-    # Проверяем выбранные цифры
-    correct_selected = selected_numbers.intersection(correct_numbers_qw4)
-    correct_count = len(correct_selected)  # Количество правильных ответов
-    total_questions = len(correct_numbers_qw4)  # Общее количество вопросов
-
-    # Сохраняем результат в базу данных
+    # Обновляем статус в БД
     async with SessionLocal() as session:
         user_result = await session.execute(
             select(UserResult).filter(
                 UserResult.user_id == callback.from_user.id,
-                UserResult.quest_id == 4  # ID квеста 4
+                UserResult.quest_id == 5
             )
         )
         user_result = user_result.scalars().first()
@@ -752,24 +625,834 @@ async def handle_done(callback: types.CallbackQuery, state: FSMContext):
         if not user_result:
             user_result = UserResult(
                 user_id=callback.from_user.id,
-                quest_id=4,
+                quest_id=5,
                 state="не выполнен",
                 attempt=1,
-                result=correct_count
+                result=0
+            )
+            session.add(user_result)
+
+        if user_result.state == "выполнен":
+            await callback.answer("Этот квест уже выполнен!")
+            return
+        await session.commit()
+
+    await callback.message.answer("Пожалуйста, отправьте все фото одним сообщением.")
+    await state.set_state(QuestState.waiting_for_photos_quest5)  # Изменили состояние
+    await callback.answer()
+
+# И обработчик фото для квеста 5:
+@router.message(F.photo, QuestState.waiting_for_photos_quest5)
+async def handle_photos_quest5(message: types.Message, state: FSMContext):
+    # Добавляем фото в state
+    user_data = await state.get_data()
+    photos = user_data.get("photos", [])
+    photos.append(message.photo[-1].file_id)
+    await state.update_data(photos=photos)
+
+    # Если это первое фото - отправляем кнопку "Готово"
+    if len(photos) == 1:
+        await message.answer(
+            "Фото получено. Отправьте остальные или нажмите 'Готово'",
+            reply_markup=quest5_finish_keyboard()
+        )
+
+
+
+# Квест 6 - Фото с клиентом
+async def quest_6(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "photo_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["photo_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    message = await callback.message.answer(
+        "Квест 6: Фото с клиентом\n"
+        "Попросите коллег сфотографировать вас во время работы с клиентом (фотографирование клиента).\n"
+        "Когда фото будет готово, нажмите кнопку ниже.",
+        reply_markup=quest6_keyboard()
+    )
+
+    await state.update_data(photo_message_id=message.message_id)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "start_qw6")
+async def collect_photo_quest6(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 6
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=6,
+                state="не выполнен",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+
+        if user_result.state == "выполнен":
+            await callback.answer("Этот квест уже выполнен!")
+            return
+        await session.commit()
+
+    await callback.message.answer("Пожалуйста, отправьте фото одним сообщением.")
+    await state.set_state(QuestState.waiting_for_photos_quest6)
+    await callback.answer()
+
+
+@router.message(F.photo, QuestState.waiting_for_photos_quest6)
+async def handle_photos_quest6(message: types.Message, state: FSMContext):
+    # Добавляем фото в state
+    user_data = await state.get_data()
+    photos = user_data.get("photos", [])
+    photos.append(message.photo[-1].file_id)
+    await state.update_data(photos=photos)
+
+    # Если это первое фото - отправляем кнопку "Готово"
+    if len(photos) == 1:
+        await message.answer(
+            "Фото получено. Отправьте остальные или нажмите 'Готово'",
+            reply_markup=quest6_finish_keyboard()
+        )
+
+
+@router.callback_query(F.data == "finish_quest6", QuestState.waiting_for_photos_quest6)
+async def send_for_moderation_quest6(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    photos = user_data.get("photos", [])
+
+    if not photos:
+        await callback.answer("Вы не отправили ни одного фото!", show_alert=True)
+        return
+
+    # Удаляем сообщение с кнопкой "Готово"
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    # Обновляем статус в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).where(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 6
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=6,
+                state="на модерации",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+
+        if user_result:
+            user_result.state = "на модерации"
+        await session.commit()
+
+    # Получаем информацию о пользователе для подписи
+    user = callback.from_user
+    username = f"@{user.username}" if user.username else f"ID: {user.id}"
+    caption = (
+        f"📸 Квест 6 - Фото с клиентом\n"
+        f"👤 Автор: {user.full_name} ({username})\n"
+        f"🕒 Время отправки: {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}"
+    )
+
+    # Отправляем фото модератору с подписью к первому фото
+    if len(photos) > 1:
+        media = []
+        # Первое фото с подписью
+        media.append(InputMediaPhoto(
+            media=photos[0],
+            caption=caption
+        ))
+        # Остальные фото без подписи
+        for photo in photos[1:]:
+            media.append(InputMediaPhoto(media=photo))
+
+        await callback.bot.send_media_group(admin_chat_id, media)
+    else:
+        # Если фото одно - отправляем с подписью
+        await callback.bot.send_photo(
+            admin_chat_id,
+            photos[0],
+            caption=caption
+        )
+
+    # Дополнительная информация для модератора с кнопками
+    await callback.bot.send_message(
+        admin_chat_id,
+        f"Выберите действие для квеста 6 от {user.full_name}:",
+        reply_markup=moderation_keyboard(
+            user_id=callback.from_user.id,
+            quest_id=6
+        )
+    )
+
+    # Финальное сообщение пользователю
+    await callback.message.answer(
+        "✅ Фото отправлено на модерацию. Ожидайте проверки.",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+    await state.clear()
+    await callback.answer()
+
+
+# Квест 7 - Товары и цены
+async def quest_7(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
+    correct_count = user_data.get("correct_count", 0)
+
+    # Удаляем предыдущие сообщения
+    try:
+        await callback.message.delete()
+        if "photo_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["photo_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Словарь с товарами, ценами и описаниями
+    products = {
+        1: {
+            "name": "магнит 100*100",
+            "photo": BASE_DIR / "handlers/media/photo/products/magnet.jpg",
+            "options": ["300", "400", "900", "500"],
+            "correct": "500",
+            "description": "Компактность, можно собирать целую коллекцию и отслеживать рост ребенка, магниты будут висеть на холодильнике и каждый день радовать вас, отлично подходит, как подарок бабушкам/дедушкам, или друзьям именинника на дне рождении."
+        },
+        2: {
+            "name": "фото А4",
+            "photo": BASE_DIR / "handlers/media/photo/products/photo_a4.jpg",
+            "options": ["1000", "700", "500", "100"],
+            "correct": "700",
+            "description": "Экономичность, фотографии можно вставить в фотоальбом, семейное дерево, можно выбрать формат, который нужен. Подходит для категории подростков, для коллекции «полароидных» фотографий."
+        },
+        3: {
+            "name": "фото А5 в рамке",
+            "photo": BASE_DIR / "handlers/media/photo/products/photo_a5_frame.jpg",
+            "options": ["1200", "1500", "900", "400"],
+            "correct": "1200",
+            "description": "Хорошо подходящая по цвету рамка, помогает в выгодном цвете подчеркнуть достоинства фотографии, также любой кадр в рамке смотрится более эстетично, и особенно однотонные тона рамочек хорошо вписываются в любой интерьер."
+        },
+        4: {
+            "name": "фото коллаж А4 в рамке",
+            "photo": BASE_DIR / "handlers/media/photo/products/photo_a5_frame.jpg",
+            "options": ["2500","2100","2200","2400"],
+            "correct": "2200",
+            "description": "Оригинальность, универсальность - можно оставить как коллаж, а можно в дальнейшем разрезать его на отдельные фотографии. Практичность - в нем собрана целая мини-фотосессия, целая мини-история, он может отлично заменить альбом. "
+        },
+        5: {
+            "name": "фото в эл. виде",
+            "photo": BASE_DIR / "handlers/media/photo/products/photo_a5_frame.jpg",
+            "options": ["100", "300", "500", "700"],
+            "correct": "500",
+            "description": "Универсален – эл. кадр можно распечатать, загрузить в соц сети, напечатать на футболку или скинуть в эл. виде друзьям. Молодое поколение может использовать для своих соц. сетей. Желательно использовать этот продукт на последней стадии продаж (так сказать бонусом)."
+        },
+        6: {
+            "name": "кружка с фото",
+            "photo": BASE_DIR / "handlers/media/photo/products/photo_a5_frame.jpg",
+            "options": ["2000", "1000", "1500", "500"],
+            "correct": "1000",
+            "description": "Хорошо подходящая по цвету рамка, помогает в выгодном цвете подчеркнуть достоинства фотографии, также любой кадр в рамке смотрится более эстетично, и особенно однотонные тона рамочек хорошо вписываются в любой интерьер."
+        }
+        ### там еще есть
+    }
+
+    current_product = products[current_question]
+
+    # Отправляем фото товара
+    photo = FSInputFile(str(current_product["photo"]))
+    message = await callback.message.answer_photo(
+        photo,
+        caption=f"Квест 7: Товары и цены\nВопрос {current_question} из {len(products)}\n"
+                f"Какова цена товара: {current_product['name']}?",
+        reply_markup=quest7_keyboard(current_product["options"])
+    )
+
+    await state.update_data(
+        photo_message_id=message.message_id,
+        current_product=current_product,
+        total_questions=len(products)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("qw7_answer_"), QuestState.waiting_for_answer)
+async def handle_quest7_answer(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
+    correct_count = user_data.get("correct_count", 0)
+    current_product = user_data.get("current_product")
+    total_questions = user_data.get("total_questions", 3)
+
+    selected_answer = callback.data.split("_")[-1]
+    is_correct = selected_answer == current_product["correct"]
+
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 7
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=7,
+                state="не выполнен",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+
+        if is_correct:
+            correct_count += 1
+            user_result.result += 1
+            await callback.answer("Верный ответ!")
+        else:
+            await callback.answer("Неверный ответ!")
+
+        if current_question == total_questions:
+            user_result.state = "выполнен" if correct_count == total_questions else "не выполнен"
+
+        await session.commit()
+
+    # Показываем описание товара
+    await callback.message.delete()
+    message = await callback.message.answer(
+        f"{'✅ Верно!' if is_correct else '❌ Неверно!'}\n"
+        f"{current_product['description']}",
+        reply_markup=quest7_next_keyboard()
+    )
+
+    await state.update_data(
+        correct_count=correct_count,
+        question_message_id=message.message_id
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "next_qw7")
+async def next_quest7_question(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1) + 1
+    total_questions = user_data.get("total_questions", 3)
+
+    await callback.message.delete()
+
+    if current_question > total_questions:
+        correct_count = user_data.get("correct_count", 0)
+        await finish_quest(callback, state, correct_count, total_questions, 7)
+    else:
+        await state.update_data(current_question=current_question)
+        await quest_7(callback, state)
+
+    await callback.answer()
+
+
+# Квест 8 - Теория продаж
+questions = {
+    1: {
+        "text": "1. Какое действие следует сделать в начале взаимодействия с клиентом?",
+        "options": [
+            "Сразу презентовать продукт",
+            "Установить контакт и поздороваться",
+            "Обсудить цену",
+            "Удалить возражения  "
+        ],
+        "correct": "Установить контакт и поздороваться",
+        "explanation": "Любое взаимодействие начинается с приветствия и установления контакта. Это создает доверительную атмосферу."
+    },
+    2: {
+        "text": "2. Что наиболее важно на этапе понимания потребностей клиента?",
+        "options": [
+            "Узнать его финансовое положение",
+            "Выявить истинные желания клиента",
+            "Рассказать о всех товарах",
+            "Узнать, где он работает"
+        ],
+        "correct": "Выявить истинные желания клиента",
+        "explanation": "Ключевая задача - понять реальные потребности клиента, а не навязывать свое видение."
+    },
+    3: {
+        "text": "3. На чем следует акцентировать внимание при презентации продукта?",
+        "options": [
+            "Только на цене продукта",
+            "На характеристиках в разрезе выгод для клиента",
+            "На количестве продаж этого товара",
+            "На сложности производства"
+        ],
+        "correct": "На характеристиках в разрезе выгод для клиента",
+        "explanation": "Важно показать, как продукт решает конкретные проблемы клиента, а не просто перечислять характеристики."
+    },
+    4: {
+        "text": "4. Какую цель преследует этап обработки возражений? ",
+        "options": [
+            "Убедить клиента в покупке ",
+            "Завершить продажу",
+            "Показать ценность продукта и ответить на сомнения",
+            "Убрать все сомнения клиента"
+        ],
+        "correct": "Показать ценность продукта и ответить на сомнения",
+        "explanation": "Возражения - это возможность прояснить сомнения клиента и показать преимущества продукта."
+    },
+    5: {
+        "text": "5. Что важно сделать после завершения продажи?",
+        "options": [
+            "Сразу перейти к следующему клиенту",
+            "Проанализировать проведенную продажу",
+            "Презентация нового продукта",
+            "Обсуждение скидок"
+        ],
+        "correct": "Проанализировать проведенную продажу",
+        "explanation": "Анализ помогает понять, что сработало хорошо, а что можно улучшить в следующий раз."
+    }
+    # 6: {
+    #     "text": "6. Что означает техника 'присоединения' при работе с возражениями?",
+    #     "options": [
+    #         "Согласиться с клиентом, затем мягко изложить свою позицию",
+    #         "Настойчиво доказывать свою правоту",
+    #         "Предложить альтернативный товар",
+    #         "Перевести разговор на другую тему"
+    #     ],
+    #     "correct": "Согласиться с клиентом, затем мягко изложить свою позицию",
+    #     "explanation": "Эта техника помогает сохранить доброжелательную атмосферу, не вызывая сопротивления у клиента."
+    # }
+}
+
+async def quest_8(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
+    correct_count = user_data.get("correct_count", 0)
+
+    # Удаляем предыдущие сообщения
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Показываем теорию перед первым вопросом
+    if current_question == 1 and "theory_shown" not in user_data:
+        theory_text = """
+📚 <b>Основы базовой теории продаж</b>
+
+Продажа — процесс передачи товаров или услуг от продавца к покупателю. Основные элементы теории продаж включают:
+
+1. <b>Приветствие и установление контакта</b>
+Любое взаимодействие начинается с приветствия и захвата внимания клиента. Постройте доверительные отношения с клиентом, допустим разговор "ни о чём" для создания благоприятной психологической основы взаимодействия. Эффективно работает правило "трёх да" - если клиент в чём-то соглашается с продавцом, можно смело переходить к следующему этапу.
+
+2. <b>Понимание клиента и определение потребностей</b>
+Выявление истинных желаний клиента, удержание внимания. Знайте целевую аудиторию, её потребности и предпочтения. Данный этап обычно более эффективен, если продавец понимает потребности клиента еще до вступления с ним в контакт.
+
+3. <b>Презентация продукта</b>  
+На этапе презентации продукта важно хорошо понимать все его преимущества, характеристики в разрезе выгод покупателя. Детально вы должны разбираться в:
+- Свойства, характеристики, особенности товара/услуги
+- Преимущества и недостатки
+- Качество
+- Стоимость
+- Что влияет на цену продукта
+
+4. <b>Обработка возражений</b>  
+Выслушивайте и отвечайте на сомнения клиента, показывая ценность продукта. Важно понимать, что возражения в большинстве случаев мнимые и могут быть с лёгкостью обработаны.
+
+5. <b>Завершение продажи</b>
+Подводите клиента к принятию решения. Используйте призыв к действию. Также эффективно работает правило "трёх да". Предложите клиенту удобный вариант оплаты. Важно оставить о себе хорошее впечатление, чтобы клиент захотел вернуться.
+
+6. <b>Анализ продажи</b>
+Проанализируйте проведённую продажу: какие инструменты сработали, какие - нет, как можно было бы еще обработать возражения. Данный пункт про развитие навыков продавца.
+
+7. <b>Послепродажное обслуживание</b>  
+Поддерживайте связь, чтобы разрешить возможные проблемы и стимулировать повторные продажи.
+
+💡 <b>Советы:</b>
+- Работа с возражениями начинается до контакта с клиентом
+- Каждое возражение должно иметь минимум один сценарий решения
+- Ответы можно продумать так, чтобы перекрывать возражения клиента ещё до их появления
+- Не спорьте с покупателем, используйте технику "присоединение"
+- В 90% случаев возражения завязаны на стоимости - донесите ценность предложения
+
+Классическая техника продаж подразумевает выполнение всех обещаний - это основа доверительных отношений. Будьте искренними и проявляйте неподдельную заинтересованность.
+"""
+        theory_message = await callback.message.answer(
+            theory_text,
+            parse_mode="HTML",
+            reply_markup=quest8_start_keyboard()
+        )
+        await state.update_data(theory_message_id=theory_message.message_id, theory_shown=True)
+        return
+
+    # Отправляем текущий вопрос
+    current_q = questions.get(current_question)
+    question_message = await callback.message.answer(
+        f"Квест 8: Теория продаж\n{current_q['text']}",
+        reply_markup=quest8_keyboard(current_q["options"])
+    )
+
+    await state.update_data(
+        question_message_id=question_message.message_id,
+        current_question_data=current_q,
+        total_questions=len(questions)
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "start_quest8_test")
+async def start_quest8_test(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем сообщение с теорией
+    user_data = await state.get_data()
+    try:
+        if "theory_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["theory_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения: {e}")
+
+    # Начинаем тест с первого вопроса
+    await state.update_data(current_question=1, correct_count=0)
+    await quest_8(callback, state)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("qw8_"), QuestState.waiting_for_answer)
+async def handle_quest8_answer(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
+    correct_count = user_data.get("correct_count", 0)
+    current_q = user_data.get("current_question_data")
+    total_questions = user_data.get("total_questions", 5)
+
+    # Получаем хэш выбранного варианта
+    selected_hash = callback.data[4:]
+
+    # Находим выбранный вариант по хэшу
+    selected_answer = None
+    for option in current_q["options"]:
+        if str(hash(option)) == selected_hash:
+            selected_answer = option
+            break
+
+    if selected_answer is None:
+        await callback.answer("Ошибка обработки ответа")
+        return
+
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 8
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=8,
+                state="не выполнен",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+
+        # Проверяем ответ
+        is_correct = selected_answer == current_q["correct"]
+
+        if is_correct:
+            correct_count += 1
+            user_result.result += 1
+            await callback.answer("Верный ответ!")
+        else:
+            await callback.answer("Неверный ответ!")
+
+        if current_question == total_questions:
+            user_result.state = "выполнен" if correct_count == total_questions else "не выполнен"
+
+        await session.commit()
+
+    # Переход к следующему вопросу или завершение
+    current_question += 1
+    if current_question > total_questions:
+        await callback.message.delete()
+        await finish_quest(callback, state, correct_count, total_questions, 8)
+    else:
+        await state.update_data(
+            current_question=current_question,
+            correct_count=correct_count
+        )
+        await quest_8(callback, state)
+
+    await callback.answer()
+
+# Квест 9 - Знакомство с коллегами
+async def quest_9(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Запрашиваем количество коллег
+    message = await callback.message.answer(
+        "Квест 9: Знакомство с коллегами\n"
+        "Сколько коллег работает с вами на смене? (Введите число)",
+        reply_markup=quest9_cancel_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        colleagues_data=[],
+        current_colleague=1
+    )
+    await state.set_state(QuestState.waiting_for_colleagues_count)
+    await callback.answer()
+
+
+@router.message(QuestState.waiting_for_colleagues_count)
+async def handle_colleagues_count(message: types.Message, state: FSMContext):
+    try:
+        colleagues_count = int(message.text)
+        if colleagues_count < 1 or colleagues_count > 20:
+            raise ValueError
+    except ValueError:
+        await message.answer("Пожалуйста, введите корректное число (от 1 до 20).")
+        return
+
+    await message.delete()
+    user_data = await state.get_data()
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    await state.update_data(colleagues_count=colleagues_count)
+    await ask_colleague_info(message, state)
+
+
+async def ask_colleague_info(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    current_colleague = user_data.get("current_colleague", 1)
+    colleagues_count = user_data.get("colleagues_count", 1)
+
+    if current_colleague > colleagues_count:
+        # Всех коллег опросили, отправляем на модерацию
+        await send_colleagues_to_moderation(message, state)
+        return
+
+    # Запрашиваем информацию о коллеге
+    question = await message.answer(
+        f"Коллега {current_colleague} из {colleagues_count}:\n"
+        "1. Выберите должность:",
+        reply_markup=quest9_position_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=question.message_id,
+        current_colleague=current_colleague
+    )
+    await state.set_state(QuestState.waiting_for_colleague_position)
+
+
+@router.callback_query(F.data.startswith("qw9_position_"), QuestState.waiting_for_colleague_position)
+async def handle_colleague_position(callback: types.CallbackQuery, state: FSMContext):
+    position = callback.data.split("_")[-1]
+
+    await callback.message.delete()
+    await state.update_data(current_position=position)
+
+    # Запрашиваем фамилию
+    surnames = ["Алиева", "Белюкова", "Бережной", "Бугрышева", "Глухов", "Горкунов",
+                "Захарова", "Шептун", "Денисламова", "Денисов", "Дорофеев", "Дорохина",
+                "Дмитриев", "Иванов", "Камаев", "Киршина", "Кочетов", "Ильин",
+                "Ирназаров", "Косарева", "Маликова", "Мартенс", "Никифорова",
+                "Пучкина", "Мухаметчина", "Першукова", "Рахманова", "Семенов",
+                "Скрябина", "Лясс", "Томилова", "Уоррен", "Чудновская", "Хаов", "Эрлих"]
+
+    builder = InlineKeyboardBuilder()
+    for surname in surnames:
+        builder.button(text=surname, callback_data=f"qw9_surname_{surname}")
+    builder.adjust(3)
+
+    question = await callback.message.answer(
+        "2. Выберите фамилию коллеги:",
+        reply_markup=builder.as_markup()
+    )
+
+    await state.update_data(question_message_id=question.message_id)
+    await state.set_state(QuestState.waiting_for_colleague_surname)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("qw9_surname_"), QuestState.waiting_for_colleague_surname)
+async def handle_colleague_surname(callback: types.CallbackQuery, state: FSMContext):
+    surname = callback.data.split("_", 2)[-1]
+
+    await callback.message.delete()
+    await state.update_data(current_surname=surname)
+
+    # Запрашиваем имя
+    question = await callback.message.answer(
+        "3. Введите имя коллеги:",
+        reply_markup=quest9_cancel_keyboard()
+    )
+
+    await state.update_data(question_message_id=question.message_id)
+    await state.set_state(QuestState.waiting_for_colleague_name)
+    await callback.answer()
+
+
+@router.message(QuestState.waiting_for_colleague_name)
+async def handle_colleague_name(message: types.Message, state: FSMContext):
+    name = message.text.strip()
+    if not name:
+        await message.answer("Пожалуйста, введите имя.")
+        return
+
+    await message.delete()
+    user_data = await state.get_data()
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    await state.update_data(current_name=name)
+
+    # Запрашиваем телеграм
+    question = await message.answer(
+        "4. Введите имя пользователя в Telegram (например, @username):",
+        reply_markup=quest9_cancel_keyboard()
+    )
+
+    await state.update_data(question_message_id=question.message_id)
+    await state.set_state(QuestState.waiting_for_colleague_telegram)
+
+
+
+@router.message(QuestState.waiting_for_colleague_telegram)
+async def handle_colleague_telegram(message: types.Message, state: FSMContext):
+    telegram = message.text.strip()
+    if not telegram:
+        await message.answer("Пожалуйста, введите имя пользователя.")
+        return
+
+    await message.delete()
+    user_data = await state.get_data()
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    # Сохраняем данные о коллеге
+    colleagues_data = user_data.get("colleagues_data", [])
+    colleagues_data.append({
+        "position": user_data.get("current_position"),
+        "surname": user_data.get("current_surname"),
+        "name": user_data.get("current_name"),
+        "telegram": telegram
+    })
+
+    # Переходим к следующему коллеге
+    current_colleague = user_data.get("current_colleague", 1) + 1
+    await state.update_data(
+        colleagues_data=colleagues_data,
+        current_colleague=current_colleague
+    )
+
+    await ask_colleague_info(message, state)
+
+
+async def send_colleagues_to_moderation(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    colleagues_data = user_data.get("colleagues_data", [])
+
+    # Формируем сообщение для модератора
+    report_text = "📋 Отчет по квесту 9 (Знакомство с коллегами):\n\n"
+    report_text += f"👤 Сотрудник: {message.from_user.full_name} (@{message.from_user.username or 'нет'})\n"
+    report_text += f"📅 Дата: {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+    report_text += "Список коллег:\n"
+
+    for i, colleague in enumerate(colleagues_data, 1):
+        report_text += (
+            f"{i}. {colleague['surname']} {colleague['name']}\n"
+            f"   Должность: {colleague['position']}\n"
+            f"   Telegram: {colleague['telegram']}\n\n"
+        )
+
+    # Отправляем модератору
+    await message.bot.send_message(
+        admin_chat_id,
+        report_text,
+        reply_markup=moderation_keyboard(message.from_user.id, 9)
+    )
+
+    # Сохраняем в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == message.from_user.id,
+                UserResult.quest_id == 9
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=message.from_user.id,
+                quest_id=9,
+                state="на модерации",
+                attempt=1,
+                result=0
             )
             session.add(user_result)
         else:
-            user_result.result = correct_count
-            if correct_count == total_questions:
-                user_result.state = "выполнен"
+            user_result.state = "на модерации"
 
         await session.commit()
-        # Обновляем уровень пользователя
-        await update_user_level(callback.from_user.id, session)
 
-    # Вызываем общую функцию завершения квеста
-    await finish_quest(callback, state, correct_count, total_questions, 4)  # 4 — ID квеста
+    # Сообщаем пользователю
+    await message.answer(
+        "✅ Данные о коллегах отправлены на модерацию. Ожидайте проверки.",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+    await state.clear()
+
+
+
+@router.callback_query(F.data == "cancel_quest9")
+async def cancel_quest9(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.delete()
+    await callback.message.answer("Квест отменен")
     await callback.answer()
+
 
 
 
@@ -988,6 +1671,807 @@ async def handle_quest3_answer(callback: types.CallbackQuery, state: FSMContext)
         await state.update_data(current_question=current_question)
         await ask_quest3_question(callback, state)  # Задаём следующий вопрос
 
+    await callback.answer()
+
+
+# Обработчик выбора цифр квест 4
+@router.callback_query(F.data.startswith("select_"), QuestState.waiting_for_selection)
+async def handle_number_selection(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    selected_numbers = user_data.get("selected_numbers", set())
+
+    number = int(callback.data.split("_")[1])
+    if number in selected_numbers:
+        selected_numbers.remove(number)  # Убираем цифру, если она уже выбрана
+    else:
+        selected_numbers.add(number)  # Добавляем цифру, если она не выбрана
+
+    await state.update_data(selected_numbers=selected_numbers)
+    new_keyboard = quest4_keyboard(selected_numbers)
+    if callback.message.reply_markup != new_keyboard:
+        await callback.message.edit_reply_markup(reply_markup=new_keyboard)
+
+    await callback.answer()
+
+# Обработчик нажатия "Готово" квест 4
+@router.callback_query(F.data == "done", QuestState.waiting_for_selection)
+async def handle_done(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    user_data = await state.get_data()
+    selected_numbers = user_data.get("selected_numbers", set())
+
+    # Проверяем выбранные цифры
+    correct_selected = selected_numbers.intersection(correct_numbers_qw4)
+    correct_count = len(correct_selected)  # Количество правильных ответов
+    total_questions = len(correct_numbers_qw4)  # Общее количество вопросов
+
+    # Сохраняем результат в базу данных
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 4  # ID квеста 4
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=4,
+                state="не выполнен",
+                attempt=1,
+                result=correct_count
+            )
+            session.add(user_result)
+        else:
+            user_result.result = correct_count
+            if correct_count == total_questions:
+                user_result.state = "выполнен"
+
+        await session.commit()
+        # Обновляем уровень пользователя
+        await update_user_level(callback.from_user.id, session)
+
+    # Вызываем общую функцию завершения квеста
+    await finish_quest(callback, state, correct_count, total_questions, 4)  # 4 — ID квеста
+    await callback.answer()
+
+
+
+#завершение квеста 5
+@router.callback_query(F.data == "finish_quest5")
+async def send_for_moderation(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    photos = user_data.get("photos", [])
+
+    if not photos:
+        await callback.answer("Вы не отправили ни одного фото!", show_alert=True)
+        return
+
+    # Удаляем сообщение с кнопкой "Готово"
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    # Обновляем статус в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).where(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 5
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=5,
+                state="на модерации",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+
+        if user_result:
+            user_result.state = "на модерации"
+        await session.commit()
+
+    # Получаем информацию о пользователе для подписи
+    user = callback.from_user
+    username = f"@{user.username}" if user.username else f"ID: {user.id}"
+    caption = (
+        f"📸 Квест 5 - Фото зоны\n"
+        f"👤 Автор: {user.full_name} ({username})\n"
+        f"🕒 Время отправки: {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}"
+    )
+
+    # Отправляем фото модератору с подписью к первому фото
+    if len(photos) > 1:
+        media = []
+        # Первое фото с подписью
+        media.append(InputMediaPhoto(
+            media=photos[0],
+            caption=caption
+        ))
+        # Остальные фото без подписи
+        for photo in photos[1:]:
+            media.append(InputMediaPhoto(media=photo))
+
+        await callback.bot.send_media_group(admin_chat_id, media)
+    else:
+        # Если фото одно - отправляем с подписью
+        await callback.bot.send_photo(
+            admin_chat_id,
+            photos[0],
+            caption=caption
+        )
+
+    # Дополнительная информация для модератора с кнопками
+    await callback.bot.send_message(
+        admin_chat_id,
+        f"Выберите действие для квеста 5 от {user.full_name}:",
+        reply_markup=moderation_keyboard(
+            user_id=callback.from_user.id,
+            quest_id=5
+        )
+    )
+
+    # Финальное сообщение пользователю
+    await callback.message.answer(
+        "✅ Все фото отправлены на модерацию. Ожидайте проверки.",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+    await state.clear()
+    await callback.answer()
+
+
+
+
+
+
+# Добавьте в quests.py
+
+# Квест 10 - Внешний вид
+async def quest_10(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "photo_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["photo_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Отправляем теорию
+    theory_text = """
+📚 <b>Внешний вид сотрудника</b>
+
+Сотрудник — это лицо компании, и ваш внешний вид играет важную роль в создании положительного впечатления у клиентов.
+
+<b>Основные требования:</b>
+1. <b>Причёска:</b> Должна быть аккуратной и чистой
+2. <b>Лицо:</b> Чистое, без яркого мейкапа
+3. <b>Бейдж:</b> Обязательно должен быть на виду
+4. <b>Одежда:</b> Чистая фирменная одежда без повреждений
+5. <b>Брюки/шорты:</b> В зависимости от локации, но всегда чистые и опрятные
+6. <b>Обувь:</b> Закрытая удобная обувь
+
+Ваш внешний вид влияет на доверие клиентов и общее впечатление о компании!
+"""
+
+    # Отправляем фото опрятных сотрудников
+    photo_path = BASE_DIR / "handlers/media/photo/neat_employees.jpg"
+    if not photo_path.exists():
+        await callback.message.answer("Файл с изображением не найден.")
+        return
+
+    photo = FSInputFile(str(photo_path))
+    message = await callback.message.answer_photo(
+        photo,
+        caption=theory_text,
+        parse_mode="HTML",
+        reply_markup=quest10_start_keyboard()
+    )
+
+    await state.update_data(photo_message_id=message.message_id)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "start_quest10")
+async def start_quest10(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущее сообщение
+    await callback.message.delete()
+
+    # Получаем пол пользователя из базы данных
+    async with SessionLocal() as session:
+        user = await session.execute(
+            select(User).filter(User.telegram_id == callback.from_user.id)
+        )
+        user = user.scalars().first()
+        gender = user.gender if user else None
+
+    # Отправляем фото неопрятного сотрудника в зависимости от пола
+    photo_filename = "messy_male.jpg" if gender == "Мужской" else "messy_female.jpg"
+    photo_path = BASE_DIR / f"handlers/media/photo/{photo_filename}"
+
+    if not photo_path.exists():
+        await callback.message.answer("Файл с изображением не найден.")
+        return
+
+    photo = FSInputFile(str(photo_path))
+    message = await callback.message.answer_photo(
+        photo,
+        caption="Перед вами неопрятный сотрудник. Давайте исправим его внешний вид!",
+        reply_markup=quest10_hair_keyboard()
+    )
+
+    await state.update_data(
+        photo_message_id=message.message_id,
+        current_step="hair"
+    )
+    await state.set_state(QuestState.waiting_for_hair)
+    await callback.answer()
+
+
+# Обработчики для каждого этапа квеста 10
+@router.callback_query(F.data.startswith("hair_"), QuestState.waiting_for_hair)
+async def handle_hair(callback: types.CallbackQuery, state: FSMContext):
+    # Проверяем правильный ответ
+    if callback.data != "hair_normal":
+        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
+        return
+
+    await callback.message.delete()
+    message = await callback.message.answer(
+        "Отлично! Теперь выберите подходящий вариант для лица:",
+        reply_markup=quest10_face_keyboard()
+    )
+
+    await state.update_data(
+        photo_message_id=message.message_id,
+        current_step="face"
+    )
+    await state.set_state(QuestState.waiting_for_face)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("face_"), QuestState.waiting_for_face)
+async def handle_face(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data != "face_clean":
+        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
+        return
+
+    await callback.message.delete()
+    message = await callback.message.answer(
+        "Отлично! Теперь выберите вариант с бейджем:",
+        reply_markup=quest10_badge_keyboard()
+    )
+
+    await state.update_data(
+        photo_message_id=message.message_id,
+        current_step="badge"
+    )
+    await state.set_state(QuestState.waiting_for_badge)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("badge_"), QuestState.waiting_for_badge)
+async def handle_badge(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data != "badge_yes":
+        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
+        return
+
+    await callback.message.delete()
+    message = await callback.message.answer(
+        "Отлично! Теперь выберите подходящую футболку:",
+        reply_markup=quest10_shirt_keyboard()
+    )
+
+    await state.update_data(
+        photo_message_id=message.message_id,
+        current_step="shirt"
+    )
+    await state.set_state(QuestState.waiting_for_shirt)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("shirt_"), QuestState.waiting_for_shirt)
+async def handle_shirt(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data != "shirt_lf":
+        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
+        return
+
+    await callback.message.delete()
+    message = await callback.message.answer(
+        "Отлично! Теперь выберите подходящие брюки/шорты:",
+        reply_markup=quest10_pants_keyboard()
+    )
+
+    await state.update_data(
+        photo_message_id=message.message_id,
+        current_step="pants"
+    )
+    await state.set_state(QuestState.waiting_for_pants)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("pants_"), QuestState.waiting_for_pants)
+async def handle_pants(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data not in ["pants_trousers", "pants_shorts"]:
+        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
+        return
+
+    await callback.message.delete()
+    message = await callback.message.answer(
+        "Отлично! Теперь выберите подходящую обувь:",
+        reply_markup=quest10_shoes_keyboard()
+    )
+
+    await state.update_data(
+        photo_message_id=message.message_id,
+        current_step="shoes"
+    )
+    await state.set_state(QuestState.waiting_for_shoes)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("shoes_"), QuestState.waiting_for_shoes)
+async def handle_shoes(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data != "shoes_sneakers":
+        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
+        return
+
+    await callback.message.delete()
+    message = await callback.message.answer(
+        "Поздравляем! Вы полностью привели сотрудника в порядок.",
+        reply_markup=quest10_finish_keyboard()
+    )
+
+    await state.update_data(
+        photo_message_id=message.message_id,
+        current_step="finish"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "finish_quest10")
+async def finish_quest10(callback: types.CallbackQuery, state: FSMContext):
+    # Сохраняем результат в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 10
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=10,
+                state="выполнен",
+                attempt=1,
+                result=100
+            )
+            session.add(user_result)
+        else:
+            user_result.state = "выполнен"
+            user_result.result = 100
+
+        await session.commit()
+
+    # Завершаем квест
+    await callback.message.delete()
+    await finish_quest(callback, state, 6, 6, 10)  # Все 6 этапов пройдены
+    await callback.answer()
+
+
+# Квест 11 - Фидбек по первому дню
+async def quest_11(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Начинаем фидбек
+    message = await callback.message.answer(
+        "Квест 11: Фидбек по первому дню\n\n"
+        "Оцени на сколько тебе были понятны условия работы после общения с HR по телефону "
+        "(где 1 - совсем не понял, что нужно делать, а 5 - сейчас убедился, что все правильно понял).",
+        reply_markup=quest11_rating_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        feedback_data={},
+        current_step="hr_rating"
+    )
+    await state.set_state(QuestState.waiting_for_hr_rating)
+    await callback.answer()
+
+
+# Обработчики для каждого вопроса фидбека
+@router.callback_query(F.data.startswith("rating_"), QuestState.waiting_for_hr_rating)
+async def handle_hr_rating(callback: types.CallbackQuery, state: FSMContext):
+    rating = int(callback.data.split("_")[1])
+
+    await state.update_data(feedback_data={"hr_rating": rating})
+    await callback.message.delete()
+
+    message = await callback.message.answer(
+        "Вспомни как проходило собеседование и оцени свои впечатления после него:",
+        reply_markup=quest11_interview_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_step="interview"
+    )
+    await state.set_state(QuestState.waiting_for_interview)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("interview_"), QuestState.waiting_for_interview)
+async def handle_interview(callback: types.CallbackQuery, state: FSMContext):
+    answer = callback.data.split("_")[1]
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["interview"] = answer
+
+    await state.update_data(feedback_data=feedback_data)
+    await callback.message.delete()
+
+    message = await callback.message.answer(
+        "Как ты думаешь, что можно улучшить на этапе знакомства? (телефонное интервью и собеседование на локации)\n\n"
+        "Напиши свой ответ текстом:",
+        reply_markup=quest9_cancel_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_step="improvement"
+    )
+    await state.set_state(QuestState.waiting_for_improvement)
+    await callback.answer()
+
+
+@router.message(QuestState.waiting_for_improvement)
+async def handle_improvement(message: types.Message, state: FSMContext):
+    if not message.text:
+        await message.answer("Пожалуйста, введите текст.")
+        return
+
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["improvement"] = message.text
+
+    await state.update_data(feedback_data=feedback_data)
+    await message.delete()
+
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    question = await message.answer(
+        "Что в большей мере повлияло на твое решение стать частью команды?",
+        reply_markup=quest11_reason_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=question.message_id,
+        current_step="reason"
+    )
+    await state.set_state(QuestState.waiting_for_reason)
+
+
+@router.callback_query(F.data.startswith("reason_"), QuestState.waiting_for_reason)
+async def handle_reason(callback: types.CallbackQuery, state: FSMContext):
+    answer = callback.data.split("_")[1]
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["reason"] = answer
+
+    await state.update_data(feedback_data=feedback_data)
+    await callback.message.delete()
+
+    message = await callback.message.answer(
+        "Оцени свои впечатления от приложения (где 1 - не понятно и не удобно, а 5 - это пушка бомба ребята):",
+        reply_markup=quest11_rating_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_step="app_rating"
+    )
+    await state.set_state(QuestState.waiting_for_app_rating)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("rating_"), QuestState.waiting_for_app_rating)
+async def handle_app_rating(callback: types.CallbackQuery, state: FSMContext):
+    rating = int(callback.data.split("_")[1])
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["app_rating"] = rating
+
+    await state.update_data(feedback_data=feedback_data)
+    await callback.message.delete()
+
+    message = await callback.message.answer(
+        "Оцени на сколько хорошо ты теперь ориентируешься на своей локации, удалось или изучить ее с помощью приложения "
+        "(где 1 - впщ не понятно, хорошо коллеги рассказали, а 5 - круто и понятно, теперь знаю, что и где находится):",
+        reply_markup=quest11_rating_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_step="location_rating"
+    )
+    await state.set_state(QuestState.waiting_for_location_rating)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("rating_"), QuestState.waiting_for_location_rating)
+async def handle_location_rating(callback: types.CallbackQuery, state: FSMContext):
+    rating = int(callback.data.split("_")[1])
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["location_rating"] = rating
+
+    await state.update_data(feedback_data=feedback_data)
+    await callback.message.delete()
+
+    message = await callback.message.answer(
+        "Как тебе рабочее место? (база)",
+        reply_markup=quest11_base_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_step="base"
+    )
+    await state.set_state(QuestState.waiting_for_base)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("base_"), QuestState.waiting_for_base)
+async def handle_base(callback: types.CallbackQuery, state: FSMContext):
+    answer = callback.data.split("_")[1]
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["base"] = answer
+
+    await state.update_data(feedback_data=feedback_data)
+    await callback.message.delete()
+
+    message = await callback.message.answer(
+        "Какая продукция тебе понравилась больше всего и почему?\n\n"
+        "Напиши свой ответ текстом:",
+        reply_markup=quest9_cancel_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_step="product"
+    )
+    await state.set_state(QuestState.waiting_for_product)
+
+
+@router.message(QuestState.waiting_for_product)
+async def handle_product(message: types.Message, state: FSMContext):
+    if not message.text:
+        await message.answer("Пожалуйста, введите текст.")
+        return
+
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["product"] = message.text
+
+    await state.update_data(feedback_data=feedback_data)
+    await message.delete()
+
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    question = await message.answer(
+        "Как ты считаешь нужно ли изучать технику продаж?",
+        reply_markup=quest11_sales_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=question.message_id,
+        current_step="sales"
+    )
+    await state.set_state(QuestState.waiting_for_sales)
+
+
+@router.callback_query(F.data.startswith("sales_"), QuestState.waiting_for_sales)
+async def handle_sales(callback: types.CallbackQuery, state: FSMContext):
+    answer = callback.data.split("_")[1]
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["sales"] = answer
+
+    await state.update_data(feedback_data=feedback_data)
+    await callback.message.delete()
+
+    message = await callback.message.answer(
+        "Оцени на сколько тебе комфортно в коллективе?",
+        reply_markup=quest11_team_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_step="team"
+    )
+    await state.set_state(QuestState.waiting_for_team)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("team_"), QuestState.waiting_for_team)
+async def handle_team(callback: types.CallbackQuery, state: FSMContext):
+    answer = callback.data.split("_")[1]
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["team"] = answer
+
+    await state.update_data(feedback_data=feedback_data)
+    await callback.message.delete()
+
+    message = await callback.message.answer(
+        "Как тебе форма?",
+        reply_markup=quest11_uniform_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_step="uniform"
+    )
+    await state.set_state(QuestState.waiting_for_uniform)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("uniform_"), QuestState.waiting_for_uniform)
+async def handle_uniform(callback: types.CallbackQuery, state: FSMContext):
+    answer = callback.data.split("_")[1]
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["uniform"] = answer
+
+    if answer == "4":
+        # Если выбрано "Есть предложения по изменению"
+        await callback.message.delete()
+        message = await callback.message.answer(
+            "Напиши свои предложения по изменению формы:",
+            reply_markup=quest9_cancel_keyboard()
+        )
+
+        await state.update_data(
+            question_message_id=message.message_id,
+            current_step="uniform_suggestions"
+        )
+        await state.set_state(QuestState.waiting_for_uniform_suggestions)
+    else:
+        await state.update_data(feedback_data=feedback_data)
+        await callback.message.delete()
+
+        message = await callback.message.answer(
+            "Спасибо за фидбек! Проверь свои ответы и нажми 'Отправить'.",
+            reply_markup=quest11_finish_keyboard()
+        )
+
+        await state.update_data(
+            question_message_id=message.message_id,
+            current_step="finish"
+        )
+
+    await callback.answer()
+
+
+@router.message(QuestState.waiting_for_uniform_suggestions)
+async def handle_uniform_suggestions(message: types.Message, state: FSMContext):
+    if not message.text:
+        await message.answer("Пожалуйста, введите текст.")
+        return
+
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+    feedback_data["uniform_suggestions"] = message.text
+
+    await state.update_data(feedback_data=feedback_data)
+    await message.delete()
+
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    question = await message.answer(
+        "Спасибо за фидбек! Проверь свои ответы и нажми 'Отправить'.",
+        reply_markup=quest11_finish_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=question.message_id,
+        current_step="finish"
+    )
+
+
+@router.callback_query(F.data == "finish_quest11")
+async def finish_quest11(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    feedback_data = user_data.get("feedback_data", {})
+
+    # Формируем отчет для модератора
+    report_text = "📋 Фидбек по первому дню:\n\n"
+    report_text += f"👤 Сотрудник: {callback.from_user.full_name} (@{callback.from_user.username or 'нет'})\n"
+    report_text += f"📅 Дата: {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+
+    report_text += f"1. Понятность условий после HR: {feedback_data.get('hr_rating', 'нет ответа')}/5\n"
+    report_text += f"2. Впечатления от собеседования: {feedback_data.get('interview', 'нет ответа')}\n"
+    report_text += f"3. Что улучшить: {feedback_data.get('improvement', 'нет ответа')}\n"
+    report_text += f"4. Причина вступления в команду: {feedback_data.get('reason', 'нет ответа')}\n"
+    report_text += f"5. Оценка приложения: {feedback_data.get('app_rating', 'нет ответа')}/5\n"
+    report_text += f"6. Ориентация на локации: {feedback_data.get('location_rating', 'нет ответа')}/5\n"
+    report_text += f"7. Рабочее место (база): {feedback_data.get('base', 'нет ответа')}\n"
+    report_text += f"8. Любимая продукция: {feedback_data.get('product', 'нет ответа')}\n"
+    report_text += f"9. Нужно ли изучать технику продаж: {feedback_data.get('sales', 'нет ответа')}\n"
+    report_text += f"10. Комфорт в коллективе: {feedback_data.get('team', 'нет ответа')}\n"
+    report_text += f"11. Форма: {feedback_data.get('uniform', 'нет ответа')}\n"
+
+    if "uniform_suggestions" in feedback_data:
+        report_text += f"12. Предложения по форме: {feedback_data['uniform_suggestions']}\n"
+
+    # Отправляем модератору
+    await callback.bot.send_message(
+        admin_chat_id,
+        report_text
+    )
+
+    # Сохраняем в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 11
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=11,
+                state="на модерации",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+        else:
+            user_result.state = "на модерации"
+
+        await session.commit()
+
+    # Завершаем квест
+    await callback.message.delete()
+    await callback.message.answer(
+        "✅ Ваш фидбек отправлен. Спасибо за участие!",
+    )
+    await state.clear()
     await callback.answer()
 
 
