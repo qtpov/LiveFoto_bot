@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from .configurate import settings
 
-from .handlers import commands, profile, achievements, moderation, quests, games, knowledge_base, registration
+from .handlers import commands, profile, achievements, moderation, quests, games, knowledge_base, registration, admin_panel
 from .db.init_db import init_db
 
 
@@ -25,6 +25,7 @@ dp.include_router(quests.router)
 dp.include_router(games.router)
 dp.include_router(knowledge_base.router)
 dp.include_router(registration.router)
+dp.include_router(admin_panel.router)
 
 
 async def main():
@@ -35,9 +36,8 @@ async def main():
     await bot.set_my_commands([
         BotCommand(command="start", description="Запуск бота"),
         BotCommand(command="profile", description="Профиль"),
-        BotCommand(command="cleardb", description="чистка бд"),
-        BotCommand(command="add_quests", description="добавить квест"),
-        BotCommand(command="edit_task", description="редактировать квест"),
+        BotCommand(command="admin_panel", description="Профиль"),
+
     ])
 
     await dp.start_polling(bot)

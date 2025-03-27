@@ -185,7 +185,7 @@ async def process_comment(message: types.Message, state: FSMContext):
             # Выдача награды
             async with SessionLocal() as session:
                 await give_achievement(user_data["target_user_id"], user_data["quest_id"], session)
-                await update_user_level(user_data["target_user_id"], session)
+                #await update_user_level(user_data["target_user_id"], session)
 
             await message.bot.send_message(
                 user_data["target_user_id"],

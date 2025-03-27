@@ -15,10 +15,11 @@ import datetime
 from random import randint
 import os
 from .states import QuestState
+from bot.configurate import settings
 
 router = Router()
 
-admin_chat_id = "693131022"
+admin_chat_id = settings.ADMIN_ID
 
 # Словарь с распределением квестов по дням
 quests_by_day = {
@@ -819,6 +820,265 @@ async def send_for_moderation_quest6(callback: types.CallbackQuery, state: FSMCo
 
 
 # Квест 7 - Товары и цены
+
+
+PRODUCT_GROUPS = {
+    "magnets": {
+        "name": "🔮 Магниты и брелоки",
+        "items": [
+            {
+                "name": "Магнит 100*100",
+                "price": "500 руб.",
+                "photo": "products/magnets/magnet_100x100.jpg"
+            },
+            {
+                "name": "Магнит А6",
+                "price": "900 руб.",
+                "photo": "products/magnets/magnet_a6.jpg"
+            },
+            {
+                "name": "Брелоки 56*40",
+                "price": "400 руб.",
+                "photo": "products/magnets/brelok.jpg"
+            }
+        ]
+    },
+    "photos": {
+        "name": "📸 Фотопечать",
+        "items": [
+            {
+                "name": "Фото А4",
+                "price": "700 руб.",
+                "photo": "products/photos/photo_a4.jpg"
+            }
+        ]
+    },
+    "photos_frame": {
+        "name": "📸 Фото в рамке",
+        "items": [
+            {
+                "name": "Фото А4 в рамке",
+                "price": "2000 руб.",
+                "photo": "products/photos_frame/photo_frame.jpg"
+            }
+        ]
+
+    },
+    "collage": {
+        "name": "📸 Коллажи",
+        "items": [
+            {
+                "name": "Коллаж А4 ",
+                "price": "2000 руб.",
+                "photo": "products/collage/collage_a4.jpg",
+                "description": " "
+            },
+            {
+                "name": "Коллаж А4 в рамке",
+                "price": "1200 руб.",
+                "photo": "products/collage/collage_a4_frame.jpg",
+                "description": " "
+            },
+            {
+                "name": "Коллаж А5 ",
+                "price": "1100 руб.",
+                "photo": "products/collage/collage_a5.jpg",
+                "description": " "
+            },
+            {
+                "name": "Коллаж А5 в рамке",
+                "price": "1100 руб.",
+                "photo": "products/collage/collage_a5_frame.jpg",
+                "description": " "
+            }
+        ]
+
+    },
+    "budka": {
+        "name": "📸 Фотобудка",
+        "items": [
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/budka/1.jpg"
+            }
+        ]
+
+    },
+    "suvenir": {
+        "name": "📸 Сувениры",
+        "items": [
+            {
+                "name": "Коллаж А4 ",
+                "price": "2000 руб.",
+                "photo": "products/suvenir/cup.jpg",
+                "description": " "
+            },
+            {
+                "name": "Коллаж А4 в рамке",
+                "price": "1200 руб.",
+                "photo": "products/suvenir/frame_fly.jpg",
+                "description": " "
+            },
+            {
+                "name": "Коллаж А5 ",
+                "price": "1100 руб.",
+                "photo": "products/suvenir/sticker.jpg",
+                "description": " "
+            },
+            {
+                "name": "Коллаж А5 в рамке",
+                "price": "1100 руб.",
+                "photo": "products/suvenir/ny_circle.jpg",
+                "description": " "
+            },
+            {
+                "name": "Коллаж А5 в рамке",
+                "price": "1100 руб.",
+                "photo": "products/suvenir/znak.jpg",
+                "description": " "
+            }
+        ]
+
+    },
+    "calendar": {
+        "name": "📸 Календари",
+        "items": [
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/calendar/a4.jpg"
+            },
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/calendar/a4_frame.jpg"
+            }
+        ]
+
+    },
+    "print": {
+        "name": "📸 Печать",
+        "items": [
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/1.jpg"
+            },
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/2.jpg"
+            },
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/3.jpg"
+            },
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/4.jpg"
+            },
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/5.jpg"
+            }
+        ]
+
+    },
+    "services": {
+        "name": "📸 Доп. услуги",
+        "items": [
+            {
+                "name": "Фото эл ",
+                "price": "2000 руб.",
+                "photo": "products/services/el.jpg"
+            },
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/services/video.jpg"
+            },
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/services/photo.jpg"
+            }
+        ]
+
+    },
+}
+    # Добавьте остальные групп
+# Словарь с товарами, ценами и описаниями
+QUEST7_TEST_QUESTIONS  = {
+        1: {
+            "name": "магнит 100*100",
+            "photo": BASE_DIR / "handlers/media/photo/products/magnet.jpg",
+            "options": ["300", "400", "900", "500"],
+            "correct": "500",
+            "description": "Компактность, можно собирать целую коллекцию и отслеживать рост ребенка, магниты будут висеть на холодильнике и каждый день радовать вас, отлично подходит, как подарок бабушкам/дедушкам, или друзьям именинника на дне рождении."
+        },
+        2: {
+            "name": "фото А4",
+            "photo": BASE_DIR / "handlers/media/photo/products/a4.jpg",
+            "options": ["1000", "700", "500", "100"],
+            "correct": "700",
+            "description": "Экономичность, фотографии можно вставить в фотоальбом, семейное дерево, можно выбрать формат, который нужен. Подходит для категории подростков, для коллекции «полароидных» фотографий."
+        },
+        3: {
+            "name": "фото А5 в рамке",
+            "photo": BASE_DIR / "handlers/media/photo/products/a5.jpg",
+            "options": ["1200", "1500", "900", "400"],
+            "correct": "1200",
+            "description": "Хорошо подходящая по цвету рамка, помогает в выгодном цвете подчеркнуть достоинства фотографии, также любой кадр в рамке смотрится более эстетично, и особенно однотонные тона рамочек хорошо вписываются в любой интерьер."
+        },
+        4: {
+            "name": "фото коллаж А4 в рамке",
+            "photo": BASE_DIR / "handlers/media/photo/products/col_a4.jpg",
+            "options": ["2500","2100","2200","2400"],
+            "correct": "2200",
+            "description": "Оригинальность, универсальность - можно оставить как коллаж, а можно в дальнейшем разрезать его на отдельные фотографии. Практичность - в нем собрана целая мини-фотосессия, целая мини-история, он может отлично заменить альбом. "
+        },
+        5: {
+            "name": "фото в эл. виде",
+            "photo": BASE_DIR / "handlers/media/photo/products/el.jpg",
+            "options": ["100", "300", "500", "700"],
+            "correct": "500",
+            "description": "Универсален – эл. кадр можно распечатать, загрузить в соц сети, напечатать на футболку или скинуть в эл. виде друзьям. Молодое поколение может использовать для своих соц. сетей. Желательно использовать этот продукт на последней стадии продаж (так сказать бонусом)."
+        },
+        6: {
+            "name": "кружка с фото",
+            "photo": BASE_DIR / "handlers/media/photo/products/cup.jpg",
+            "options": ["2000", "1000", "1500", "500"],
+            "correct": "1000",
+            "description": "Практичность, разнообразие бытовой посуды в доме (есть разные цвета самой кружки), памятное воспоминание будет радовать и согревать, как и чай в этой кружке, термостойкость, оригинальный подарок ребёнку, безопасный в использовании."
+        },
+        7: {
+            "name": "левитирующая рамка",
+            "photo": BASE_DIR / "handlers/media/photo/products/zaglushka.png",
+            "options": ["2000", "5000", "5500", "3500"],
+            "correct": "5000",
+            "description": 'Уникальность, универсальность – рамка будет не только дополнять и разбавлять интерьер квартиры, но её можно использовать, как ночник для детей. Так же в рамке используются 2 фотографии, которые можно менять со временем, покрытие пленки-глянцевое. Используется как "золотой" продукт - на фоне цены левитирующей рамки, цены на остальные виды продукции воспринимаются как оптимальные.'
+        },
+        8: {
+            "name": "фото календарь А4 в рамке",
+            "photo": BASE_DIR / "handlers/media/photo/products/calendar.jpg",
+            "options": ["2100", "2500", "2300", "2000"],
+            "correct": "2100",
+            "description": "Уникальность – можно считать эксклюзивом перед предстоящим годом. В отличие от простой фотографии, которая будет висеть на холодильнике, он несет в себе информацию, на которую так или иначе будут обращать внимание. Также календарь может выполнять роль сувенира или подарка, как на день рождения или новый год, так и на любые праздники, родственникам, бабушкам и дедушкам."
+        },
+        9: {
+            "name": 'фотопрогулка 1 час "Стандарт"',
+            "photo": BASE_DIR / "handlers/media/photo/products/fp.jpg",
+            "options": ["4500", "5000", "3000", "3500"],
+            "correct": "3500",
+            "description": "Услуга, которую мы можем предоставлять на дни рождения и не только.\nПреимущество: Очень выгодное предложение для родителей именинника. В эту услугу входит «аренда» нашего фотографа на час мероприятия, по итогу которого они получают минимум 30 эл. кадров в цветокоррекции и на достойном уровне качества. Стандарт – 1 час, не менее 50 фото в цветокореркции + 1 фотомагнит 10*10 и 2 фото 21*15 в подарок"
+        }
+    }
+
+
 async def quest_7(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     current_question = user_data.get("current_question", 1)
@@ -832,79 +1092,213 @@ async def quest_7(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         print(f"Ошибка при удалении сообщений: {e}")
 
-    # Словарь с товарами, ценами и описаниями
-    products = {
-        1: {
-            "name": "магнит 100*100",
-            "photo": BASE_DIR / "handlers/media/photo/products/magnet.jpg",
-            "options": ["300", "400", "900", "500"],
-            "correct": "500",
-            "description": "Компактность, можно собирать целую коллекцию и отслеживать рост ребенка, магниты будут висеть на холодильнике и каждый день радовать вас, отлично подходит, как подарок бабушкам/дедушкам, или друзьям именинника на дне рождении."
-        },
-        2: {
-            "name": "фото А4",
-            "photo": BASE_DIR / "handlers/media/photo/products/photo_a4.jpg",
-            "options": ["1000", "700", "500", "100"],
-            "correct": "700",
-            "description": "Экономичность, фотографии можно вставить в фотоальбом, семейное дерево, можно выбрать формат, который нужен. Подходит для категории подростков, для коллекции «полароидных» фотографий."
-        },
-        3: {
-            "name": "фото А5 в рамке",
-            "photo": BASE_DIR / "handlers/media/photo/products/photo_a5_frame.jpg",
-            "options": ["1200", "1500", "900", "400"],
-            "correct": "1200",
-            "description": "Хорошо подходящая по цвету рамка, помогает в выгодном цвете подчеркнуть достоинства фотографии, также любой кадр в рамке смотрится более эстетично, и особенно однотонные тона рамочек хорошо вписываются в любой интерьер."
-        },
-        4: {
-            "name": "фото коллаж А4 в рамке",
-            "photo": BASE_DIR / "handlers/media/photo/products/photo_a5_frame.jpg",
-            "options": ["2500","2100","2200","2400"],
-            "correct": "2200",
-            "description": "Оригинальность, универсальность - можно оставить как коллаж, а можно в дальнейшем разрезать его на отдельные фотографии. Практичность - в нем собрана целая мини-фотосессия, целая мини-история, он может отлично заменить альбом. "
-        },
-        5: {
-            "name": "фото в эл. виде",
-            "photo": BASE_DIR / "handlers/media/photo/products/photo_a5_frame.jpg",
-            "options": ["100", "300", "500", "700"],
-            "correct": "500",
-            "description": "Универсален – эл. кадр можно распечатать, загрузить в соц сети, напечатать на футболку или скинуть в эл. виде друзьям. Молодое поколение может использовать для своих соц. сетей. Желательно использовать этот продукт на последней стадии продаж (так сказать бонусом)."
-        },
-        6: {
-            "name": "кружка с фото",
-            "photo": BASE_DIR / "handlers/media/photo/products/photo_a5_frame.jpg",
-            "options": ["2000", "1000", "1500", "500"],
-            "correct": "1000",
-            "description": "Хорошо подходящая по цвету рамка, помогает в выгодном цвете подчеркнуть достоинства фотографии, также любой кадр в рамке смотрится более эстетично, и особенно однотонные тона рамочек хорошо вписываются в любой интерьер."
-        }
-        ### там еще есть
-    }
+    # Проверяем, в каком режиме находимся (просмотр товаров или тест)
+    if not user_data.get("test_mode", False):
+        """Начало квеста - показ товаров по группам"""
+        await state.update_data(
+            current_group=0,
+            test_mode=False
+        )
+        await show_product_group(callback, state)
+    else:
+        """Продолжение тестовой части"""
+        await ask_test_question(callback, state)
 
-    current_product = products[current_question]
-
-    # Отправляем фото товара
-    photo = FSInputFile(str(current_product["photo"]))
-    message = await callback.message.answer_photo(
-        photo,
-        caption=f"Квест 7: Товары и цены\nВопрос {current_question} из {len(products)}\n"
-                f"Какова цена товара: {current_product['name']}?",
-        reply_markup=quest7_keyboard(current_product["options"])
-    )
-
-    await state.update_data(
-        photo_message_id=message.message_id,
-        current_product=current_product,
-        total_questions=len(products)
-    )
     await callback.answer()
 
+
+async def show_product_group(callback: types.CallbackQuery, state: FSMContext):
+    """Показывает одну группу товаров"""
+    user_data = await state.get_data()
+    group_keys = list(PRODUCT_GROUPS.keys())
+    current_idx = user_data.get("current_group", 0)
+
+    # Удаляем предыдущие сообщения
+    try:
+        if "media_group_ids" in user_data:
+            for msg_id in user_data["media_group_ids"]:
+                await callback.bot.delete_message(callback.message.chat.id, msg_id)
+    except Exception as e:
+        print(f"Ошибка при удалении: {e}")
+
+    group = PRODUCT_GROUPS[group_keys[current_idx]]
+
+    # Создаем медиагруппу
+    album_builder = MediaGroupBuilder(
+        caption=f"{group['name']}\nИзучите товары и цены"
+    )
+
+    for item in group["items"]:
+        photo_path = BASE_DIR / f"handlers/media/photo/{item['photo']}"
+        if photo_path.exists():
+            album_builder.add_photo(
+                media=FSInputFile(str(photo_path))
+            )
+
+    # Отправляем группу товаров
+    sent_messages = await callback.message.answer_media_group(media=album_builder.build())
+
+    # Кнопка для продолжения
+    is_last_group = current_idx == len(group_keys) - 1
+    button_text = "✅ Приступить к тесту" if is_last_group else "➡️ Дальше"
+    callback_data = "start_quest7_test" if is_last_group else "next_product_group"
+
+    control_message = await callback.message.answer(
+        f"Шаг {current_idx + 1}/{len(group_keys)}",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=button_text, callback_data=callback_data)]
+            ]
+        ))
+
+    await state.update_data(
+        media_group_ids=[m.message_id for m in sent_messages],
+        control_message_id=control_message.message_id
+    )
+
+
+@router.callback_query(F.data == "next_product_group")
+async def next_product_group(callback: types.CallbackQuery, state: FSMContext):
+    """Показывает следующую группу товаров"""
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "media_group_ids" in user_data:
+            for msg_id in user_data["media_group_ids"]:
+                await callback.bot.delete_message(callback.message.chat.id, msg_id)
+        if "control_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["control_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    #await callback.message.delete()
+
+    user_data = await state.get_data()
+    current_idx = user_data.get("current_group", 0) + 1
+    await state.update_data(current_group=current_idx)
+    await show_product_group(callback, state)
+    await callback.answer()
+
+@router.callback_query(F.data == "next_question_test")
+async def next_test_question(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1) + 1
+    total_questions = user_data.get("total_questions", len(QUEST7_TEST_QUESTIONS))
+
+    await callback.message.delete()
+
+    if current_question <= total_questions:
+        await state.update_data(current_question=current_question)
+        await ask_test_question(callback, state)
+    else:
+        correct_count = user_data.get("correct_count", 0)
+        await finish_quest(callback, state, correct_count, total_questions, 7)
+
+    await callback.answer()
+
+
+@router.callback_query(F.data == "start_quest7_test")
+async def start_quest7_test(callback: types.CallbackQuery, state: FSMContext):
+    """Начинает тестовую часть квеста"""
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "media_group_ids" in user_data:
+            for msg_id in user_data["media_group_ids"]:
+                await callback.bot.delete_message(callback.message.chat.id, msg_id)
+        if "control_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["control_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    await state.update_data(
+        test_mode=True,
+        current_question=1,
+        correct_count=0,
+        total_questions=len(QUEST7_TEST_QUESTIONS)
+    )
+
+    # Начинаем тест с первого вопроса
+    await ask_test_question(callback, state)
+    await callback.answer()
+
+
+async def ask_test_question(callback: types.CallbackQuery, state: FSMContext):
+    """Задает тестовый вопрос"""
+    user_data = await state.get_data()
+    question_data = QUEST7_TEST_QUESTIONS[user_data["current_question"]]
+
+    # Сохраняем вопрос в state
+    await state.update_data(current_product=question_data)
+
+    try:
+        # Удаляем предыдущие сообщения
+        if "photo_message_id" in user_data:
+            try:
+                await callback.bot.delete_message(callback.message.chat.id, user_data["photo_message_id"])
+            except:
+                pass
+
+        # Проверяем путь к фото
+        if isinstance(question_data["photo"], Path):
+            photo_path = question_data["photo"]
+        else:
+            photo_path = BASE_DIR / "handlers/media/photo" / question_data["photo"]
+
+        if not photo_path.exists():
+            raise FileNotFoundError(f"Фото не найдено: {photo_path}")
+
+        # Отправляем вопрос с фото
+        photo = FSInputFile(photo_path)
+        message = await callback.message.answer_photo(
+            photo,
+            caption=f"Тест: Вопрос {user_data['current_question']}/{user_data['total_questions']}\n"
+                    f"Укажите цену товара: {question_data['name']}",
+            reply_markup=quest7_keyboard(question_data["options"])
+        )
+
+        await state.update_data(
+            current_question_data=question_data,
+            photo_message_id=message.message_id
+        )
+
+    except FileNotFoundError as e:
+        print(f"Ошибка: {e}")
+        # Если фото не найдено, отправляем текст без фото
+        message = await callback.message.answer(
+            f"Тест: Вопрос {user_data['current_question']}/{user_data['total_questions']}\n"
+            f"Укажите цену товара: {question_data['name']}\n"
+            f"⚠️ Фото временно недоступно",
+            reply_markup=quest7_keyboard(question_data["options"])
+        )
+        await state.update_data(
+            current_question_data=question_data,
+            photo_message_id=message.message_id
+        )
+
+    except Exception as e:
+        print(f"Неожиданная ошибка: {e}")
+        await callback.message.answer("Произошла ошибка при загрузке вопроса. Попробуйте еще раз.")
+        await state.finish()
 
 @router.callback_query(F.data.startswith("qw7_answer_"), QuestState.waiting_for_answer)
 async def handle_quest7_answer(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
-    current_question = user_data.get("current_question", 1)
-    correct_count = user_data.get("correct_count", 0)
-    current_product = user_data.get("current_product")
-    total_questions = user_data.get("total_questions", 3)
+
+    # Проверяем наличие необходимых данных
+    if not all(key in user_data for key in ['current_question', 'correct_count', 'current_product', 'total_questions']):
+        await callback.answer("Ошибка: данные вопроса не найдены. Начните квест заново.")
+        await state.clear()
+        return
+
+    current_question = user_data["current_question"]
+    correct_count = user_data["correct_count"]
+    current_product = user_data["current_product"]
+    total_questions = user_data["total_questions"]
+
+    # Дополнительная проверка current_product
+    if current_product is None:
+        await callback.answer("Ошибка: информация о товаре не найдена.")
+        return
 
     selected_answer = callback.data.split("_")[-1]
     is_correct = selected_answer == current_product["correct"]
@@ -931,9 +1325,9 @@ async def handle_quest7_answer(callback: types.CallbackQuery, state: FSMContext)
         if is_correct:
             correct_count += 1
             user_result.result += 1
-            await callback.answer("Верный ответ!")
+            await callback.answer("✅ Верный ответ!")
         else:
-            await callback.answer("Неверный ответ!")
+            await callback.answer("❌ Неверный ответ!")
 
         if current_question == total_questions:
             user_result.state = "выполнен" if correct_count == total_questions else "не выполнен"
@@ -941,7 +1335,11 @@ async def handle_quest7_answer(callback: types.CallbackQuery, state: FSMContext)
         await session.commit()
 
     # Показываем описание товара
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
     message = await callback.message.answer(
         f"{'✅ Верно!' if is_correct else '❌ Неверно!'}\n"
         f"{current_product['description']}",
@@ -952,28 +1350,29 @@ async def handle_quest7_answer(callback: types.CallbackQuery, state: FSMContext)
         correct_count=correct_count,
         question_message_id=message.message_id
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "next_qw7")
 async def next_quest7_question(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     current_question = user_data.get("current_question", 1) + 1
-    total_questions = user_data.get("total_questions", 3)
 
-    await callback.message.delete()
-
-    if current_question > total_questions:
-        correct_count = user_data.get("correct_count", 0)
-        await finish_quest(callback, state, correct_count, total_questions, 7)
-    else:
-        await state.update_data(current_question=current_question)
+    # Обновляем текущий продукт
+    if current_question <= len(QUEST7_TEST_QUESTIONS):
+        await state.update_data(
+            current_question=current_question,
+            current_product=QUEST7_TEST_QUESTIONS[current_question]
+        )
         await quest_7(callback, state)
-
-    await callback.answer()
-
+    else:
+        correct_count = user_data.get("correct_count", 0)
+        await finish_quest(callback, state, correct_count, user_data["total_questions"], 7)
+        async with SessionLocal() as session:
+            await update_user_level(callback.from_user.id, session)
+            await session.commit()
 
 # Квест 8 - Теория продаж
+
 questions = {
     1: {
         "text": "1. Какое действие следует сделать в начале взаимодействия с клиентом?",
@@ -1030,17 +1429,6 @@ questions = {
         "correct": "Проанализировать проведенную продажу",
         "explanation": "Анализ помогает понять, что сработало хорошо, а что можно улучшить в следующий раз."
     }
-    # 6: {
-    #     "text": "6. Что означает техника 'присоединения' при работе с возражениями?",
-    #     "options": [
-    #         "Согласиться с клиентом, затем мягко изложить свою позицию",
-    #         "Настойчиво доказывать свою правоту",
-    #         "Предложить альтернативный товар",
-    #         "Перевести разговор на другую тему"
-    #     ],
-    #     "correct": "Согласиться с клиентом, затем мягко изложить свою позицию",
-    #     "explanation": "Эта техника помогает сохранить доброжелательную атмосферу, не вызывая сопротивления у клиента."
-    # }
 }
 
 async def quest_8(callback: types.CallbackQuery, state: FSMContext):
@@ -2463,6 +2851,8 @@ async def finish_quest11(callback: types.CallbackQuery, state: FSMContext):
             session.add(user_result)
         else:
             user_result.state = "на модерации"
+
+        await update_user_level(callback.from_user.id, session)
 
         await session.commit()
 

@@ -3,7 +3,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 
-
 #клавиатура действий в профиле
 def profile_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -27,6 +26,25 @@ def reg_keyboard():
 def go_profile_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Профиль", callback_data="profile")]
+    ])
+#клавиатура админа на старте
+def admin_start_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Админ-панель", callback_data="go_admin_panel")],
+        [InlineKeyboardButton(text="Профиль", callback_data="profile")]
+    ])
+
+def admin_panel_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Список сотрудников", callback_data="list_intern")],
+        [InlineKeyboardButton(text="Получить общую статистику", callback_data="get_analytics")],
+        [InlineKeyboardButton(text="Профиль", callback_data="profile")]
+    ])
+
+#клавиатура перехода в админ панель
+def go_admin_panel_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data="go_admin_panel")]
     ])
 
 def knowledge_keyboard():
@@ -195,10 +213,25 @@ def quest7_keyboard(options):
         )])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def quest7_next_keyboard():
+# Раздельные клавиатуры для разных этапов
+def quest7_view_next_keyboard():
+    """Клавиатура для этапа ознакомления"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Далее", callback_data="next_qw7")]
+        [InlineKeyboardButton(text="Далее", callback_data="next_product_group")]
     ])
+
+def quest7_next_keyboard():
+    """Клавиатура для тестового этапа"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Следующий вопрос", callback_data="next_question_test")]
+    ])
+
+def quest7_finish_keyboard():
+    """Клавиатура для завершения теста"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Завершить тест", callback_data="finish_quest7")]
+    ])
+
 
 def quest8_start_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
