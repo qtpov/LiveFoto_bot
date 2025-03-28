@@ -360,9 +360,10 @@ async def quest_2(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         print(f"Ошибка при удалении сообщений: {e}")
 
+
     folder_name = correct_answers_qw2[current_question]
-    photo_path1 = BASE_DIR / f"handlers/media/photo/Zone/{folder_name}/1.jpg"
-    photo_path2 = BASE_DIR / f"handlers/media/photo/Zone/{folder_name}/2.jpg"
+    photo_path1 = BASE_DIR / f"handlers/media/photo/Zone/{folder_name}/{randint(1,4)}.jpg"
+    photo_path2 = BASE_DIR / f"handlers/media/photo/Zone/{folder_name}/{randint(1,4)}.jpg"
 
     if not photo_path1.exists() or not photo_path2.exists():
         await callback.message.answer("Файлы с изображениями не найдены.")
@@ -408,48 +409,200 @@ async def quest_3(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         print(f"Ошибка при удалении сообщений: {e}")
 
-    # Список file_id видео
-    file_ids = [
-        "BAACAgIAAxkBAAIQbGfZ6i6PSqfFkwEviKkeTzjSIq07AAIcdQACA47RSsKNwE8ZB6jMNgQ",
-        "BAACAgIAAxkBAAIQb2fZ7BlHovx8Xp1lXQULoPC9TQodAAIqdQACA47RStHyr_i86-BDNgQ",
-        "BAACAgIAAxkBAAIQcWfZ7JauvtWMaVmGZURQAzGYZKcgAAItdQACA47RSmhTstArUV9lNgQ",
-        "BAACAgIAAxkBAAIQc2fZ7KUbwPbvvLzZkvlXEpkreZBEAAIudQACA47RSlZ0vju21gr_NgQ",
-        "BAACAgIAAxkBAAIQdWfZ7_pGQdK3VOE928wyF3OS2NOLAAI2dQACA47RSpceq4CXeMQSNgQ",
+    # Список видео с описаниями этапов (file_id, описание)
+    video_steps = [
+        {
+            "file_id": "BAACAgIAAxkBAAIQbGfZ6i6PSqfFkwEviKkeTzjSIq07AAIcdQACA47RSsKNwE8ZB6jMNgQ",
+            "description": "🔧 *Этап 1: Сборка техники*"
+        },
+        {
+            "file_id": "BAACAgIAAxkBAAIQb2fZ7BlHovx8Xp1lXQULoPC9TQodAAIqdQACA47RStHyr_i86-BDNgQ",
+            "description": "📸 *Этап 2: Фотографирование*"
+        },
+        {
+            "file_id": "BAACAgIAAxkBAAIQcWfZ7JauvtWMaVmGZURQAzGYZKcgAAItdQACA47RSmhTstArUV9lNgQ",
+            "description": "🛠️ *Этап 3: Ретушь*"
+        },
+        {
+            "file_id": "BAACAgIAAxkBAAIQc2fZ7KUbwPbvvLzZkvlXEpkreZBEAAIudQACA47RSlZ0vju21gr_NgQ",
+            "description": "📝 *Этап 4: Печать*"
+        },
+        {
+            "file_id": "BAACAgIAAxkBAAIQdWfZ7_pGQdK3VOE928wyF3OS2NOLAAI2dQACA47RSpceq4CXeMQSNgQ",
+            "description": "⭐️ *Этап 5: Демонстрация*"
+        }
     ]
 
-    # Создаём медиагруппу
-    album_builder = MediaGroupBuilder()
+    # Сохраняем данные о видео в state
+    await state.update_data(
+        video_steps=video_steps,
+        current_step=0,
+        video_message_ids=[]
+    )
 
-    # Добавляем видео в медиагруппу по их file_id
-    for file_id in file_ids:
-        album_builder.add(type="video", media=file_id)
-
-    try:
-        # Отправляем медиагруппу
-        sent_messages = await callback.message.answer_media_group(media=album_builder.build())
-        video_message_ids = [msg.message_id for msg in sent_messages]
-
-        # Отправляем сообщение с клавиатурой
-        question_message = await callback.message.answer(
-            "Квест 3: \nПосмотри видео и приступи к выполнению квеста",
-            reply_markup=quest3_keyboard_after_video()
-        )
-
-        # Сохраняем ID всех сообщений для последующего удаления
-        await state.update_data(
-            video_message_ids=video_message_ids,
-            question_message_id=question_message.message_id
-        )
-
-        # Переводим состояние в waiting_for_answer
-        await state.set_state(QuestState.waiting_for_answer)
-
-    except Exception as e:
-        print(f"Ошибка при отправке медиагруппы: {e}")
-        await callback.message.answer("Произошла ошибка при отправке видео. Попробуйте ещё раз.")
-
+    # Начинаем показ первого видео
+    await show_next_video_step(callback, state)
     await callback.answer()
 
+
+async def show_next_video_step(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_step = user_data.get("current_step", 0)
+    video_steps = user_data.get("video_steps", [])
+    video_message_ids = user_data.get("video_message_ids", [])
+
+    # Удаляем предыдущее сообщение с кнопкой, если оно есть
+    if "step_message_id" in user_data:
+        try:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["step_message_id"])
+        except Exception as e:
+            print(f"Ошибка при удалении сообщения: {e}")
+
+    # Проверяем, есть ли еще видео для показа
+    if current_step < len(video_steps):
+        step_data = video_steps[current_step]
+
+        # Отправляем видео с описанием
+        sent_message = await callback.message.answer_video(
+            step_data["file_id"],
+            caption=step_data["description"],
+            parse_mode="Markdown"
+        )
+        video_message_ids.append(sent_message.message_id)
+
+        # Создаем клавиатуру (Далее или Приступить к вопросам для последнего шага)
+        if current_step < len(video_steps) - 1:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Далее →", callback_data="next_video_step")]
+            ])
+            action_text = "\nНажмите 'Далее' для продолжения"
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Приступить к тесту", callback_data="start_quest3_test")]
+            ])
+            action_text = "\nНажмите 'Приступить к тесту', когда будете готовы"
+
+
+        # Отправляем сообщение с кнопкой
+        step_message = await callback.message.answer(
+            action_text,
+            reply_markup=keyboard
+        )
+
+        # Обновляем состояние
+        await state.update_data(
+            current_step=current_step + 1,
+            video_message_ids=video_message_ids,
+            step_message_id=step_message.message_id
+        )
+    else:
+        # Все видео показаны, можно начинать тест
+        await start_quest3_test(callback, state)
+
+@router.callback_query(F.data == "next_video_step")
+async def handle_next_video_step(callback: types.CallbackQuery, state: FSMContext):
+    await show_next_video_step(callback, state)
+    await callback.answer()
+
+# Обработчик ответов для квеста 3
+@router.callback_query(F.data == "start_quest3_test", QuestState.waiting_for_answer)
+async def start_quest3_test(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+
+    # Удаляем предыдущее сообщение с кнопкой
+    if "step_message_id" in user_data:
+        try:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["step_message_id"])
+            for msg in  user_data["video_message_ids"]:
+                await callback.bot.delete_message(callback.message.chat.id, msg)
+        except Exception as e:
+            print(f"Ошибка при удалении сообщения: {e}")
+
+    # Начинаем с первого вопроса
+    await state.update_data(current_question=1, correct_count=0)
+    await ask_quest3_question(callback, state)
+    await callback.answer()
+
+async def ask_quest3_question(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
+
+    # Удаляем предыдущее сообщение, если оно есть
+    if "question_message_id" in user_data:
+        try:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+        except Exception as e:
+            print(f"Ошибка при удалении сообщения: {e}")
+
+    # Задаём вопрос
+    question_text = f"Квест 3: Какое {current_question} действие в очереди?\nВыбери правильный вариант:"
+    message = await callback.message.answer(
+        question_text,
+        reply_markup=quest3_keyboard(current_question)
+    )
+
+    # Сохраняем ID сообщения для последующего удаления
+    await state.update_data(question_message_id=message.message_id)
+    await callback.answer()
+
+@router.callback_query(F.data.in_(correct_answers_qw3.values()), QuestState.waiting_for_answer)
+async def handle_quest3_answer(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
+    correct_count = user_data.get("correct_count", 0)
+    current_quest_id = user_data.get("current_quest_id", 3)  # ID квеста 3
+
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == current_quest_id
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=current_quest_id,
+                state="не выполнен",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+
+        if user_result.state == "выполнен":
+            await callback.answer("Этот квест уже выполнен!")
+            return
+
+        # Проверяем ответ пользователя
+        if callback.data == correct_answers_qw3[current_question]:
+            correct_count += 1
+            user_result.result += 1
+            await session.commit()  # Сохраняем изменение результата в БД
+            await callback.answer('Верный ответ!')
+        else:
+            await callback.answer('Ответ неверный.')
+
+        # Если все вопросы пройдены, отмечаем квест как выполненный
+        if current_question == len(correct_answers_qw3):
+            user_result.state = "выполнен"
+            await session.commit()  # Финальный коммит после завершения квеста
+
+    # Обновляем состояние FSM
+    await state.update_data(correct_count=correct_count)
+
+    # Переход к следующему вопросу или завершение квеста
+    current_question += 1
+    if current_question > len(correct_answers_qw3):
+        await callback.message.delete()
+        await finish_quest(callback, state, correct_count, len(correct_answers_qw3), current_quest_id)
+        await session.commit()
+    else:
+        await state.update_data(current_question=current_question)
+        await ask_quest3_question(callback, state)  # Задаём следующий вопрос
+
+    await callback.answer()
 
 
 # Квест 4
@@ -1956,108 +2109,6 @@ async def handle_quest2_answer(callback: types.CallbackQuery, state: FSMContext)
     else:
         await state.update_data(current_question=current_question)
         await quest_2(callback, state)
-
-    await callback.answer()
-
-# Обработчик ответов для квеста 3
-@router.callback_query(F.data == "complete_video_qw3", QuestState.waiting_for_answer)
-async def start_quest3_questions(callback: types.CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-
-    # Удаляем оба сообщения (медиагруппу и сообщение с кнопкой "Приступить")
-    try:
-        video_message_ids = user_data.get("video_message_ids", [])
-        question_message_id = user_data.get("question_message_id")
-
-        for message_id in video_message_ids:
-            await callback.bot.delete_message(callback.message.chat.id, message_id)
-        if question_message_id:
-            await callback.bot.delete_message(callback.message.chat.id, question_message_id)
-    except Exception as e:
-        print(f"Ошибка при удалении сообщений: {e}")
-
-    # Начинаем с первого вопроса
-    await state.update_data(current_question=1, correct_count=0)
-    await ask_quest3_question(callback, state)
-
-async def ask_quest3_question(callback: types.CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    current_question = user_data.get("current_question", 1)
-
-    # Удаляем предыдущее сообщение, если оно есть
-    if "question_message_id" in user_data:
-        try:
-            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
-        except Exception as e:
-            print(f"Ошибка при удалении сообщения: {e}")
-
-    # Задаём вопрос
-    question_text = f"Квест 3: Вопрос {current_question}\nВыбери правильный вариант:"
-    message = await callback.message.answer(
-        question_text,
-        reply_markup=quest3_keyboard(current_question)
-    )
-
-    # Сохраняем ID сообщения для последующего удаления
-    await state.update_data(question_message_id=message.message_id)
-    await callback.answer()
-
-@router.callback_query(F.data.in_(correct_answers_qw3.values()), QuestState.waiting_for_answer)
-async def handle_quest3_answer(callback: types.CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    current_question = user_data.get("current_question", 1)
-    correct_count = user_data.get("correct_count", 0)
-    current_quest_id = user_data.get("current_quest_id", 3)  # ID квеста 3
-
-    async with SessionLocal() as session:
-        user_result = await session.execute(
-            select(UserResult).filter(
-                UserResult.user_id == callback.from_user.id,
-                UserResult.quest_id == current_quest_id
-            )
-        )
-        user_result = user_result.scalars().first()
-
-        if not user_result:
-            user_result = UserResult(
-                user_id=callback.from_user.id,
-                quest_id=current_quest_id,
-                state="не выполнен",
-                attempt=1,
-                result=0
-            )
-            session.add(user_result)
-
-        if user_result.state == "выполнен":
-            await callback.answer("Этот квест уже выполнен!")
-            return
-
-        # Проверяем ответ пользователя
-        if callback.data == correct_answers_qw3[current_question]:
-            correct_count += 1
-            user_result.result += 1
-            await session.commit()  # Сохраняем изменение результата в БД
-            await callback.answer('Верный ответ!')
-        else:
-            await callback.answer('Ответ неверный.')
-
-        # Если все вопросы пройдены, отмечаем квест как выполненный
-        if current_question == len(correct_answers_qw3):
-            user_result.state = "выполнен"
-            await session.commit()  # Финальный коммит после завершения квеста
-
-    # Обновляем состояние FSM
-    await state.update_data(correct_count=correct_count)
-
-    # Переход к следующему вопросу или завершение квеста
-    current_question += 1
-    if current_question > len(correct_answers_qw3):
-        await callback.message.delete()
-        await finish_quest(callback, state, correct_count, len(correct_answers_qw3), current_quest_id)
-        await session.commit()
-    else:
-        await state.update_data(current_question=current_question)
-        await ask_quest3_question(callback, state)  # Задаём следующий вопрос
 
     await callback.answer()
 
