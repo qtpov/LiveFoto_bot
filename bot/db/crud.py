@@ -70,6 +70,17 @@ async def update_user_level(user_id: int, session):
         user.level += 1
         await session.commit()
 
+async def update_user_day(user_id: int, session):
+    user = await session.execute(
+        select(User).filter(User.telegram_id == user_id)
+    )
+    user = user.scalars().first()
+
+    if not user:
+        return
+    else:
+        user.day += 1
+        await session.commit()
 
 
 

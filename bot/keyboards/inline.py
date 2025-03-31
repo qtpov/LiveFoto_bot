@@ -22,6 +22,8 @@ def reg_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Начать регистрацию", callback_data="start_profile_form")]
     ])
+
+
 #клавиатура перехода в профиль
 def go_profile_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -45,6 +47,13 @@ def admin_panel_keyboard():
 def go_admin_panel_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Назад", callback_data="go_admin_panel")]
+    ])
+
+# Клавиатура для списка квестов
+def quests_list_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Начать квесты", callback_data="start_quests_confirm")],
+        [InlineKeyboardButton(text="Профиль", callback_data="profile")]
     ])
 
 def knowledge_keyboard():
@@ -175,6 +184,14 @@ def quest6_finish_keyboard():
     builder.add(InlineKeyboardButton(
         text="Готово",
         callback_data="finish_quest6"
+    ))
+    return builder.as_markup()
+
+def quest11_finish_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.add(InlineKeyboardButton(
+        text="Готово",
+        callback_data="next_quest_12"
     ))
     return builder.as_markup()
 
@@ -389,4 +406,48 @@ def quest11_uniform_keyboard():
 def quest11_finish_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Отправить фидбек", callback_data="finish_quest11")]
+    ])
+
+
+# Клавиатуры для квеста 12
+def quest12_keyboard(options: list[str]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for option in options:
+        builder.add(InlineKeyboardButton(
+            text=option.capitalize(),
+            callback_data=f"qw12_{option}"
+        ))
+    builder.adjust(2)
+    return builder.as_markup()
+
+def quest12_back_to_question_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="← Вернуться к вопросу", callback_data="back_to_question_12")]
+    ])
+
+# Клавиатуры для квеста 13
+def quest13_watch_again_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Пересмотреть видео", callback_data="watch_again_13")],
+        [InlineKeyboardButton(text="Продолжить", callback_data="continue_quest13")]
+    ])
+
+def quest13_continue_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Продолжить", callback_data="continue_quest13")]
+    ])
+
+def quest13_task_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Пропустить", callback_data="skip_task_13")]
+    ])
+
+def quest13_skip_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Пропустить", callback_data="skip_task_13")]
+    ])
+
+def quest13_finish_tasks_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Завершить", callback_data="finish_quest13")]
     ])

@@ -2,7 +2,6 @@
 from aiogram.fsm.state import StatesGroup, State
 
 
-
 class QuestState(StatesGroup):
     # Общие состояния
     waiting_for_answer = State()
@@ -18,6 +17,7 @@ class QuestState(StatesGroup):
     # Состояния для квестов с фото
     waiting_for_photos_quest5 = State()  # Для квеста 5
     waiting_for_photos_quest6 = State()  # Для квеста 6
+    waiting_for_photo_quest13 = State()  # Для квеста 13
 
     # Состояния для квеста 9
     waiting_for_colleagues_count = State()
