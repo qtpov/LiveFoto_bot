@@ -18,6 +18,7 @@ class QuestState(StatesGroup):
     waiting_for_photos_quest5 = State()  # Для квеста 5
     waiting_for_photos_quest6 = State()  # Для квеста 6
     waiting_for_photo_quest13 = State()  # Для квеста 13
+    waiting_for_photo_quest14 = State()
 
     # Состояния для квеста 9
     waiting_for_colleagues_count = State()

@@ -249,6 +249,10 @@ def quest7_finish_keyboard():
         [InlineKeyboardButton(text="Завершить тест", callback_data="finish_quest7")]
     ])
 
+def quest8_konspekt_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Конспект", callback_data="quest8_text")]
+    ])
 
 def quest8_start_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -451,3 +455,14 @@ def quest13_finish_tasks_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Завершить", callback_data="finish_quest13")]
     ])
+
+
+def quest14_skip_zone_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Пропустить зону", callback_data="skip_zone_14")
+    return builder.as_markup()
+
+def quest14_finish_shooting_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Завершить и отправить", callback_data="finish_quest14")
+    return builder.as_markup()

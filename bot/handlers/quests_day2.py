@@ -256,14 +256,14 @@ async def start_quest12_test(callback: types.CallbackQuery, state: FSMContext):
 
 # Словарь с правильными ответами для квеста 12
 correct_answers_qw12 = {
-    1: "ISO",
-    2: "выдержка",
-    3: "диафрагма",
-    4: "режим фокусировки",
-    5: "колесо режимов",
-    6: "кнопку спуска затвора",
-    7: "доп дисплей",
-    8: "кнопку включения",
+    1: "режим фокусировки",
+    2: "диафрагма",
+    3: "выдержка",
+    4: "ISO",
+    5: "кнопку включения",
+    6: "колесо режимов",
+    7: "кнопку спуска затвора",
+    8: "доп дисплей",
     9: "кнопка включения",
     10: "стрелки изменение импульса",
     11: "кнопка срабатывания вспышки"
@@ -681,6 +681,302 @@ async def finish_quest13(callback: types.CallbackQuery, state: FSMContext):
     )
     await state.clear()
     await callback.answer()
+
+
+# Квест 14 - Зоны фотографирования
+async def quest_14(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Примеры кадров для разных зон (замените на реальные file_id)
+    sample_shots = [
+        {
+            "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
+            "description": "🔼 Кадр сверху вниз:\nСнимите вертикально, чтобы в кадре был только ребёнок и шарики, будто он в море из шариков"
+        },
+        {
+            "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
+            "description": "📐 Кадр под углом 45°:\nСнимите сбоку под углом, акцентируя внимание на взаимодействии ребёнка с шарами"
+        },
+        {
+            "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
+            "description": "👶 Кадр на уровне глаз ребёнка:\nСнимите горизонтально, чтобы передать мир глазами ребёнка"
+        },
+        {
+            "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
+            "description": "🌊 Кадр 'моря из шариков':\nСнимите сверху с широким углом, чтобы захватить максимальное количество шаров"
+        }
+    ]
+
+    # Сохраняем данные о кадрах в state
+    await state.update_data(
+        sample_shots=sample_shots,
+        current_shot=0,
+        shot_message_ids=[],
+        user_shots=[]
+    )
+
+    # Начинаем показ первого кадра
+    await show_next_sample_shot_14(callback, state)
+    await callback.answer()
+
+
+async def show_next_sample_shot_14(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_shot = user_data.get("current_shot", 0)
+    sample_shots = user_data.get("sample_shots", [])
+    shot_message_ids = user_data.get("shot_message_ids", [])
+
+    # Удаляем предыдущее сообщение с кнопкой
+    if "shot_message_id" in user_data:
+        try:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["shot_message_id"])
+        except Exception as e:
+            print(f"Ошибка при удалении сообщения: {e}")
+
+    # Проверяем, есть ли еще кадры для показа
+    if current_shot < len(sample_shots):
+        shot_data = sample_shots[current_shot]
+
+        # Отправляем пример кадра с описанием
+        sent_message = await callback.message.answer_photo(
+            shot_data["file_id"],
+            caption=shot_data["description"],
+            parse_mode="Markdown"
+        )
+        shot_message_ids.append(sent_message.message_id)
+
+        # Создаем клавиатуру (Далее или Начать съемку для последнего шага)
+        if current_shot < len(sample_shots) - 1:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Далее →", callback_data="next_sample_shot_14")]
+            ])
+            action_text = "Нажмите 'Далее' для просмотра следующего примера"
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Начать съемку", callback_data="start_shooting_14")]
+            ])
+            action_text = "После просмотра всех примеров нажмите 'Начать съемку'"
+
+        # Отправляем сообщение с кнопкой
+        shot_message = await callback.message.answer(
+            action_text,
+            reply_markup=keyboard
+        )
+
+        # Обновляем состояние
+        await state.update_data(
+            current_shot=current_shot + 1,
+            shot_message_ids=shot_message_ids,
+            shot_message_id=shot_message.message_id
+        )
+    else:
+        # Все примеры показаны, можно начинать съемку
+        await start_shooting_14(callback, state)
+
+
+@router.callback_query(F.data == "next_sample_shot_14")
+async def handle_next_sample_shot_14(callback: types.CallbackQuery, state: FSMContext):
+    await show_next_sample_shot_14(callback, state)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "start_shooting_14")
+async def start_shooting_14(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "shot_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["shot_message_id"])
+        if "shot_message_ids" in user_data:
+            for msg_id in user_data["shot_message_ids"]:
+                await callback.bot.delete_message(callback.message.chat.id, msg_id)
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Начинаем процесс съемки
+    await state.update_data(
+        shooting_mode=True,
+        current_zone=1,
+        total_zones=4  # Всего 4 зоны для съемки
+    )
+    await request_shot_14(callback, state)
+    await callback.answer()
+
+
+async def request_shot_14(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_zone = user_data.get("current_zone", 1)
+    total_zones = user_data.get("total_zones", 4)
+    sample_shots = user_data.get("sample_shots", [])
+
+    # Определяем описание для текущей зоны
+    zone_descriptions = {
+        1: "🔼 Сделайте кадр сверху вниз",
+        2: "📐 Сделайте кадр под углом 45°",
+        3: "👶 Сделайте кадр на уровне глаз ребёнка",
+        4: "🌊 Сделайте кадр 'моря из шариков'"
+    }
+
+    # Отправляем напоминание о текущей зоне
+    message = await callback.message.answer(
+        f"📷 Зона {current_zone}/{total_zones}\n"
+        f"{zone_descriptions[current_zone]}\n\n"
+        "Сфотографируйте этот кадр на экране монитора и отправьте фото.",
+        reply_markup=quest14_skip_zone_keyboard() if current_zone < total_zones else quest14_finish_shooting_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_zone=current_zone
+    )
+    await state.set_state(QuestState.waiting_for_photo_quest14)
+
+
+@router.message(F.photo, QuestState.waiting_for_photo_quest14)
+async def handle_photo_quest14(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    user_shots = user_data.get("user_shots", [])
+    current_zone = user_data.get("current_zone", 1)
+
+    # Добавляем фото в список
+    user_shots.append({
+        "zone": current_zone,
+        "file_id": message.photo[-1].file_id
+    })
+
+    await state.update_data(user_shots=user_shots)
+
+    # Удаляем предыдущее сообщение с заданием
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    # Отправляем подтверждение получения фото
+    message_text = f"✅ Фото для зоны {current_zone} получено."
+
+    if current_zone < user_data.get("total_zones", 4):
+        message_text += " Отправьте следующее фото или нажмите 'Пропустить зону'."
+        keyboard = quest14_skip_zone_keyboard()
+    else:
+        message_text += " Все фото получены. Нажмите 'Завершить', чтобы отправить на модерацию."
+        keyboard = quest14_finish_shooting_keyboard()
+
+    question = await message.answer(
+        message_text,
+        reply_markup=keyboard
+    )
+
+    await state.update_data(question_message_id=question.message_id)
+    await message.delete()
+
+
+@router.callback_query(F.data == "skip_zone_14")
+async def skip_zone_14(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_zone = user_data.get("current_zone", 1) + 1
+    total_zones = user_data.get("total_zones", 4)
+
+    if current_zone <= total_zones:
+        await state.update_data(current_zone=current_zone)
+        await callback.message.delete()
+        await request_shot_14(callback, state)
+    else:
+        await callback.answer("Это последняя зона, пропустить нельзя", show_alert=True)
+
+    await callback.answer()
+
+
+@router.callback_query(F.data == "finish_quest14")
+async def finish_quest14(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    user_shots = user_data.get("user_shots", [])
+
+    if not user_shots:
+        await callback.answer("Вы не отправили ни одного фото!", show_alert=True)
+        return
+
+    # Удаляем сообщение с кнопкой
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    # Сохраняем в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 14
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=14,
+                state="на модерации",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+        else:
+            user_result.state = "на модерации"
+
+        await session.commit()
+
+    # Формируем сообщение для модератора
+    user = callback.from_user
+    username = f"@{user.username}" if user.username else f"ID: {user.id}"
+    caption = (
+        f"📸 Квест 14 - Зоны фотографирования\n"
+        f"👤 Автор: {user.full_name} ({username})\n"
+        f"🕒 Время отправки: {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}"
+    )
+
+    # Отправляем фото модератору с кнопками для модерации
+    media = []
+    for i, shot in enumerate(user_shots, 1):
+        media.append(InputMediaPhoto(
+            media=shot["file_id"],
+            caption=f"{caption}\n\nЗона {shot['zone']}" if i == 1 else f"Зона {shot['zone']}"
+        ))
+
+    if len(media) > 1:
+        await callback.bot.send_media_group(admin_chat_id, media)
+    else:
+        await callback.bot.send_photo(admin_chat_id, media[0].media, caption=media[0].caption)
+
+    # Дополнительная информация для модератора с кнопками принятия/отклонения
+    await callback.bot.send_message(
+        admin_chat_id,
+        f"Фото от {user.full_name} для квеста 14 готовы к проверке.\n"
+        "Проверьте соответствие ТЗ и настройки фотоаппарата.",
+        reply_markup=moderation_keyboard(callback.from_user.id, 14)
+    )
+
+    # Сообщение пользователю
+    await callback.message.answer(
+        "✅ Все фото отправлены на модерацию. Ожидайте проверки.",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+    await state.clear()
+    await callback.answer()
+
+
+# Квест 14 - Зоны фотографирования
+async def quest_15(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer('пока все', reply_markup=go_profile_keyboard())
+
 
 
 # Обработчик для всех остальных ответов
