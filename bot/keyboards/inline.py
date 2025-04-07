@@ -285,68 +285,33 @@ def quest9_position_keyboard():
 # Добавьте в конец inline.py
 
 def quest10_start_keyboard():
+    """Клавиатура для начала квеста 10"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Приступить", callback_data="start_quest10")]
+        [InlineKeyboardButton(text="▶️ Начать", callback_data="start_quest10")]
     ])
 
-def quest10_hair_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Растрёпанная", callback_data="hair_messy")],
-        [InlineKeyboardButton(text="Грязная", callback_data="hair_dirty")],
-        [InlineKeyboardButton(text="Нормальная", callback_data="hair_normal")],
-        [InlineKeyboardButton(text="Шапка", callback_data="hair_hat")],
-        [InlineKeyboardButton(text="Кепка", callback_data="hair_cap")],
-        [InlineKeyboardButton(text="Поварской колпак", callback_data="hair_chef")]
-    ])
-
-def quest10_face_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Чёрный мейкап", callback_data="face_black")],
-        [InlineKeyboardButton(text="Синий мейкап", callback_data="face_blue")],
-        [InlineKeyboardButton(text="Красный мейкап", callback_data="face_red")],
-        [InlineKeyboardButton(text="Грязный", callback_data="face_dirty")],
-        [InlineKeyboardButton(text="Сопли", callback_data="face_snot")],
-        [InlineKeyboardButton(text="Чистый", callback_data="face_clean")]
-    ])
-
-def quest10_badge_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Есть бейдж", callback_data="badge_yes")],
-        [InlineKeyboardButton(text="Нет бейджа", callback_data="badge_no")]
-    ])
-
-def quest10_shirt_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Футболка LF", callback_data="shirt_lf")],
-        [InlineKeyboardButton(text="Футболка с пятнами", callback_data="shirt_dirty")],
-        [InlineKeyboardButton(text="Кофта", callback_data="shirt_sweater")],
-        [InlineKeyboardButton(text="Дырявая", callback_data="shirt_holey")]
-    ])
-
-def quest10_pants_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Брюки", callback_data="pants_trousers")],
-        [InlineKeyboardButton(text="Шорты", callback_data="pants_shorts")],
-        [InlineKeyboardButton(text="Грязные", callback_data="pants_dirty")],
-        [InlineKeyboardButton(text="Скини", callback_data="pants_skinny")],
-        [InlineKeyboardButton(text="Широкие", callback_data="pants_wide")],
-        [InlineKeyboardButton(text="Рваные", callback_data="pants_torn")]
-    ])
-
-def quest10_shoes_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Кроксы", callback_data="shoes_crocs")],
-        [InlineKeyboardButton(text="Носки дырявые", callback_data="shoes_holey_socks")],
-        [InlineKeyboardButton(text="Носки целые", callback_data="shoes_whole_socks")],
-        [InlineKeyboardButton(text="Сандали", callback_data="shoes_sandals")],
-        [InlineKeyboardButton(text="Кроссовки", callback_data="shoes_sneakers")]
-    ])
+def quest10_choice_keyboard(step: str):
+    """Клавиатура для выбора варианта (1-5) на каждом этапе"""
+    builder = InlineKeyboardBuilder()
+    for i in range(1, 6):
+        builder.add(InlineKeyboardButton(
+            text=str(i),
+            callback_data=f"qw10_choose_{step}_{i}"
+        ))
+    builder.adjust(5)
+    return builder.as_markup()
 
 def quest10_finish_keyboard():
+    """Клавиатура после завершения квеста"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Завершить", callback_data="finish_quest10")]
+        [InlineKeyboardButton(text="➡️ Следующий квест", callback_data="next_quest_11")]
     ])
 
+def quest10_retry_keyboard(step: str):
+    """Клавиатура при ошибке выбора (повторить)"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data=f"retry_quest10_{step}")]
+    ])
 def quest11_start_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Начать фидбек", callback_data="start_quest11")]

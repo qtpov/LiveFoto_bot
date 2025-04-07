@@ -8,6 +8,10 @@ class QuestState(StatesGroup):
     waiting_for_moderation = State()
     waiting_for_comment = State()
 
+    waiting_for_answer_quest16 = State()
+    waiting_for_answer_quest19 = State()
+
+
     # Состояния для квеста 4
     waiting_for_clean_photo = State()
     waiting_for_items_photo = State()
@@ -19,6 +23,9 @@ class QuestState(StatesGroup):
     waiting_for_photos_quest6 = State()  # Для квеста 6
     waiting_for_photo_quest13 = State()  # Для квеста 13
     waiting_for_photo_quest14 = State()
+    waiting_for_photo_quest15 = State()
+    waiting_for_photo_quest18 = State()
+    waiting_for_photo_quest20 = State()
 
     # Состояния для квеста 9
     waiting_for_colleagues_count = State()

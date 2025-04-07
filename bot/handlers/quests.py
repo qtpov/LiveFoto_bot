@@ -2200,12 +2200,35 @@ async def send_for_moderation(callback: types.CallbackQuery, state: FSMContext):
 
 
 
-
-
-
-# Добавьте в quests.py
-
 # Квест 10 - Внешний вид
+# Добавим в начало файла quests.py
+QUEST10_CORRECT_ANSWERS = {
+    "Мужской": {
+        "head": 4,  # Правильный вариант для головы (мужчина)
+        "top": 3,  # Правильный вариант для верха (мужчина)
+        "badge": 1,  # Правильный вариант для бейджа (мужчина)
+        "bottom": 4,  # Правильный вариант для низа (мужчина)
+        "shoes": 5  # Правильный вариант для обуви (мужчина)
+    },
+    "Женский": {
+        "head": 3,  # Правильный вариант для головы (женщина)
+        "top": 4,  # Правильный вариант для верха (женщина)
+        "badge": 1,  # Правильный вариант для бейджа (женщина)
+        "bottom": 3,  # Правильный вариант для низа (женщина)
+        "shoes": 4  # Правильный вариант для обуви (женщина)
+    }
+}
+
+# Добавляем функцию для получения заголовка этапа
+def get_step_caption(step: str) -> str:
+    captions = {
+        "head": "1. Выбери правильный образ сотрудника 'голова'",
+        "top": "2. Выбери правильный образ сотрудника 'верх'",
+        "badge": "3. Выбери правильный образ сотрудника 'бейдж'",
+        "bottom": "4. Выбери правильный образ сотрудника 'низ'",
+        "shoes": "5. Выбери правильный образ сотрудника 'обувь'"
+    }
+    return captions.get(step, "Выберите правильный вариант")
 async def quest_10(callback: types.CallbackQuery, state: FSMContext):
     # Удаляем предыдущие сообщения
     user_data = await state.get_data()
@@ -2216,33 +2239,48 @@ async def quest_10(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         print(f"Ошибка при удалении сообщений: {e}")
 
-    # Отправляем теорию
-    theory_text = """
-📚 <b>Внешний вид сотрудника</b>
+    # Получаем пол пользователя из базы данных
+    async with SessionLocal() as session:
+        user = await session.execute(
+            select(User).filter(User.telegram_id == callback.from_user.id)
+        )
+        user = user.scalars().first()
+        gender = user.gender if user else None
 
-Сотрудник — это лицо компании, и ваш внешний вид играет важную роль в создании положительного впечатления у клиентов.
-
-<b>Основные требования:</b>
-1. <b>Причёска:</b> Должна быть аккуратной и чистой
-2. <b>Лицо:</b> Чистое, без яркого мейкапа
-3. <b>Бейдж:</b> Обязательно должен быть на виду
-4. <b>Одежда:</b> Чистая фирменная одежда без повреждений
-5. <b>Брюки/шорты:</b> В зависимости от локации, но всегда чистые и опрятные
-6. <b>Обувь:</b> Закрытая удобная обувь
-
-Ваш внешний вид влияет на доверие клиентов и общее впечатление о компании!
-"""
-
-    # Отправляем фото опрятных сотрудников
-    photo_path = BASE_DIR / "handlers/media/photo/neat_employees.jpg"
-    if not photo_path.exists():
-        await callback.message.answer("Файл с изображением не найден.")
+    if not gender:
+        await callback.message.answer("Не удалось определить ваш пол. Пожалуйста, обновите данные профиля.")
         return
 
-    photo = FSInputFile(str(photo_path))
-    message = await callback.message.answer_photo(
-        photo,
-        caption=theory_text,
+    # Сохраняем пол в состоянии
+    await state.update_data(
+        gender=gender,
+        current_step="head",
+        correct_count=0,
+        total_steps=5
+    )
+
+    text = """
+📚 <b>Внешний вид сотрудника</b>
+
+ Сотрудник компании Лайвфото является лицом компании и обязан соответствовать внутренним правилам так как в первую очередь клиент видит Вас и оценивает по внешнему виду уровень компании и Вас в целом как профессионала.
+
+Дресс-код сотрудников
+
+<b>Верх (лето, работа в помещении)</b>
+    • Фирменная одежда с логотипом компании (футболка, толстовка и т. д.).
+    • Именной бейдж с фото, именем, фамилией и должностью. В случае негодности – общий бейдж (без ФИО, с логотипом и обозначением "Фотограф"). Стажёры также используют общий бейдж.
+    • Опрятная причёска. Мужчины: аккуратная борода и усы либо гладкое бритьё.
+    • В помещении без головного убора (если требуется – согласование с управляющим).
+
+<b>Низ (работа в помещении, кроме аквапарков)</b>
+    • <b>Женщины</b>: классические штаны, леггинсы, джинсы (чёрные, белые, бежевые, тёмно-синие), без принтов и разрывов.
+    • <b>Мужчины</b>: классические штаны, джинсы (чёрные, бежевые, тёмно-синие), не обтягивающие, без разрывов. Носки – тёмно-синие или чёрные.
+    • Сменная обувь (если требуется): кроссовки, кеды, полукеды, спортивная удобная обувь классических цветов, без ярких принтов.
+
+"""
+    # Отправляем инструкцию
+    message = await callback.message.answer(
+        text,
         parse_mode="HTML",
         reply_markup=quest10_start_keyboard()
     )
@@ -2256,166 +2294,129 @@ async def start_quest10(callback: types.CallbackQuery, state: FSMContext):
     # Удаляем предыдущее сообщение
     await callback.message.delete()
 
-    # Получаем пол пользователя из базы данных
-    async with SessionLocal() as session:
-        user = await session.execute(
-            select(User).filter(User.telegram_id == callback.from_user.id)
+    # Начинаем первый этап
+    user_data = await state.get_data()
+    await show_quest10_step(callback, state, user_data["current_step"])
+    await callback.answer()
+
+
+async def show_quest10_step(callback: types.CallbackQuery, state: FSMContext, step: str):
+    user_data = await state.get_data()
+    gender = user_data.get("gender")
+
+    # Определяем папку с изображениями в зависимости от пола и этапа
+    gender_folder = "male" if gender == "Мужской" else "female"
+    step_folders = {
+        "head": "head",
+        "top": "top",
+        "badge": "badge",
+        "bottom": "bottom",
+        "shoes": "shoes"
+    }
+
+    photo_dir = BASE_DIR / f"handlers/media/photo/appearance/{gender_folder}/{step_folders[step]}"
+
+    # Получаем список фото и перемешиваем
+    try:
+        photo_paths = list(photo_dir.glob("*.png"))
+
+        if not photo_paths:
+            await callback.message.answer("Изображения для этого этапа не найдены.")
+            return
+
+        # Создаем медиагруппу
+        album_builder = MediaGroupBuilder(
+            caption=get_step_caption(step)
         )
-        user = user.scalars().first()
-        gender = user.gender if user else None
 
-    # Отправляем фото неопрятного сотрудника в зависимости от пола
-    photo_filename = "messy_male.jpg" if gender == "Мужской" else "messy_female.jpg"
-    photo_path = BASE_DIR / f"handlers/media/photo/{photo_filename}"
+        for i, photo_path in enumerate(photo_paths[:5], 1):  # Берем первые 5 фото
+            album_builder.add_photo(
+                media=FSInputFile(str(photo_path)),
+                caption=f"Вариант {i}"
+            )
 
-    if not photo_path.exists():
-        await callback.message.answer("Файл с изображением не найден.")
+        # Отправляем медиагруппу
+        sent_messages = await callback.message.answer_media_group(media=album_builder.build())
+
+        # Получаем правильный ответ для этого этапа и пола
+        correct_answer = QUEST10_CORRECT_ANSWERS[gender][step]
+
+        # Отправляем клавиатуру для выбора
+        message = await callback.message.answer(
+            "Выберите правильный вариант (1-5):",
+            reply_markup=quest10_choice_keyboard(step)
+        )
+
+        # Сохраняем данные для последующей проверки
+        await state.update_data(
+            current_step=step,
+            photo_message_ids=[m.message_id for m in sent_messages],
+            choice_message_id=message.message_id,
+            correct_answer=correct_answer
+        )
+    except Exception as e:
+        print(f"Ошибка при загрузке изображений: {e}")
+        await callback.message.answer("Произошла ошибка при загрузке заданий. Попробуйте позже.")
+        await state.clear()
+
+
+@router.callback_query(F.data.startswith("qw10_choose_"))
+async def handle_quest10_choice(callback: types.CallbackQuery, state: FSMContext):
+    parts = callback.data.split("_")
+    step = parts[2]
+    chosen_answer = int(parts[3])
+
+    user_data = await state.get_data()
+    correct_answer = user_data.get("correct_answer")
+    correct_count = user_data.get("correct_count", 0)
+
+    # Проверяем ответ
+    if chosen_answer != correct_answer:
+        await callback.answer("❌ Неверный выбор! Попробуйте еще раз.", show_alert=True)
         return
 
-    photo = FSInputFile(str(photo_path))
-    message = await callback.message.answer_photo(
-        photo,
-        caption="Перед вами неопрятный сотрудник. Давайте исправим его внешний вид!",
-        reply_markup=quest10_hair_keyboard()
-    )
+    # Увеличиваем счетчик правильных ответов
+    correct_count += 1
+    await state.update_data(correct_count=correct_count)
 
-    await state.update_data(
-        photo_message_id=message.message_id,
-        current_step="hair"
-    )
-    await state.set_state(QuestState.waiting_for_hair)
+    # Удаляем предыдущие сообщения
+    try:
+        if "photo_message_ids" in user_data:
+            for msg_id in user_data["photo_message_ids"]:
+                await callback.bot.delete_message(callback.message.chat.id, msg_id)
+        if "choice_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["choice_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Определяем следующий этап
+    next_steps = ["head", "top", "badge", "bottom", "shoes"]
+    current_index = next_steps.index(step)
+
+    if current_index < len(next_steps) - 1:
+        # Переходим к следующему этапу
+        next_step = next_steps[current_index + 1]
+        await state.update_data(current_step=next_step)
+        await show_quest10_step(callback, state, next_step)
+    else:
+        # Все этапы пройдены
+        await finish_quest10(callback, state)
+
     await callback.answer()
 
 
-# Обработчики для каждого этапа квеста 10
-@router.callback_query(F.data.startswith("hair_"), QuestState.waiting_for_hair)
-async def handle_hair(callback: types.CallbackQuery, state: FSMContext):
-    # Проверяем правильный ответ
-    if callback.data != "hair_normal":
-        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
-        return
-
-    await callback.message.delete()
-    message = await callback.message.answer(
-        "Отлично! Теперь выберите подходящий вариант для лица:",
-        reply_markup=quest10_face_keyboard()
-    )
-
-    await state.update_data(
-        photo_message_id=message.message_id,
-        current_step="face"
-    )
-    await state.set_state(QuestState.waiting_for_face)
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("face_"), QuestState.waiting_for_face)
-async def handle_face(callback: types.CallbackQuery, state: FSMContext):
-    if callback.data != "face_clean":
-        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
-        return
-
-    await callback.message.delete()
-    message = await callback.message.answer(
-        "Отлично! Теперь выберите вариант с бейджем:",
-        reply_markup=quest10_badge_keyboard()
-    )
-
-    await state.update_data(
-        photo_message_id=message.message_id,
-        current_step="badge"
-    )
-    await state.set_state(QuestState.waiting_for_badge)
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("badge_"), QuestState.waiting_for_badge)
-async def handle_badge(callback: types.CallbackQuery, state: FSMContext):
-    if callback.data != "badge_yes":
-        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
-        return
-
-    await callback.message.delete()
-    message = await callback.message.answer(
-        "Отлично! Теперь выберите подходящую футболку:",
-        reply_markup=quest10_shirt_keyboard()
-    )
-
-    await state.update_data(
-        photo_message_id=message.message_id,
-        current_step="shirt"
-    )
-    await state.set_state(QuestState.waiting_for_shirt)
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("shirt_"), QuestState.waiting_for_shirt)
-async def handle_shirt(callback: types.CallbackQuery, state: FSMContext):
-    if callback.data != "shirt_lf":
-        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
-        return
-
-    await callback.message.delete()
-    message = await callback.message.answer(
-        "Отлично! Теперь выберите подходящие брюки/шорты:",
-        reply_markup=quest10_pants_keyboard()
-    )
-
-    await state.update_data(
-        photo_message_id=message.message_id,
-        current_step="pants"
-    )
-    await state.set_state(QuestState.waiting_for_pants)
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("pants_"), QuestState.waiting_for_pants)
-async def handle_pants(callback: types.CallbackQuery, state: FSMContext):
-    if callback.data not in ["pants_trousers", "pants_shorts"]:
-        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
-        return
-
-    await callback.message.delete()
-    message = await callback.message.answer(
-        "Отлично! Теперь выберите подходящую обувь:",
-        reply_markup=quest10_shoes_keyboard()
-    )
-
-    await state.update_data(
-        photo_message_id=message.message_id,
-        current_step="shoes"
-    )
-    await state.set_state(QuestState.waiting_for_shoes)
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("shoes_"), QuestState.waiting_for_shoes)
-async def handle_shoes(callback: types.CallbackQuery, state: FSMContext):
-    if callback.data != "shoes_sneakers":
-        await callback.answer("Неверный выбор! Попробуйте ещё раз.", show_alert=True)
-        return
-
-    await callback.message.delete()
-    message = await callback.message.answer(
-        "Поздравляем! Вы полностью привели сотрудника в порядок.",
-        reply_markup=quest10_finish_keyboard()
-    )
-
-    await state.update_data(
-        photo_message_id=message.message_id,
-        current_step="finish"
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "finish_quest10")
 async def finish_quest10(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    correct_count = user_data.get("correct_count", 0)
+    total_steps = user_data.get("total_steps", 5)
+    current_quest_id = 10  # ID текущего квеста
+
     # Сохраняем результат в БД
     async with SessionLocal() as session:
         user_result = await session.execute(
             select(UserResult).filter(
                 UserResult.user_id == callback.from_user.id,
-                UserResult.quest_id == 10
+                UserResult.quest_id == current_quest_id
             )
         )
         user_result = user_result.scalars().first()
@@ -2423,23 +2424,21 @@ async def finish_quest10(callback: types.CallbackQuery, state: FSMContext):
         if not user_result:
             user_result = UserResult(
                 user_id=callback.from_user.id,
-                quest_id=10,
+                quest_id=current_quest_id,
                 state="выполнен",
                 attempt=1,
-                result=100
+                result=int((correct_count / total_steps) * 100)
             )
             session.add(user_result)
         else:
             user_result.state = "выполнен"
-            user_result.result = 100
+            user_result.result = int((correct_count / total_steps) * 100)
 
         await session.commit()
 
-    # Завершаем квест
-    await callback.message.delete()
-    await finish_quest(callback, state, 6, 6, 10)  # Все 6 этапов пройдены
+    # Используем общую функцию завершения квеста
+    await finish_quest(callback, state, correct_count, total_steps, current_quest_id)
     await callback.answer()
-
 
 # Квест 11 - Фидбек по первому дню
 async def quest_11(callback: types.CallbackQuery, state: FSMContext):

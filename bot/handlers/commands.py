@@ -43,7 +43,7 @@ async def admin_cmd(message: types.Message):
     await message.answer(f"Добро пожаловать!\nВам доступна Админ-панель",
                          reply_markup=admin_start_keyboard())
 
-# # Обработчик для файлов и медиа
+# Обработчик для файлов и медиа
 # @router.message()
 # async def handle_files(message: types.Message):
 #     if message.document:
