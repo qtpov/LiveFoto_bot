@@ -147,7 +147,7 @@ def quest3_keyboard(question_number: int):
         ],
         3: [
             [InlineKeyboardButton(text="Обед на локации", callback_data="Обед на локации")],
-            [InlineKeyboardButton(text="Демонстрация", callback_data="Демонстрация")],
+            [InlineKeyboardButton(text="Презентация", callback_data="Презентация")],
             [InlineKeyboardButton(text="Ретушь", callback_data="Ретушь")]
         ],
         4: [
@@ -156,7 +156,7 @@ def quest3_keyboard(question_number: int):
             [InlineKeyboardButton(text="Просмотр роликов", callback_data="Просмотр роликов")]
         ],
         5: [
-            [InlineKeyboardButton(text="Демонстрация", callback_data="Демонстрация")],
+            [InlineKeyboardButton(text="Презентация", callback_data="Презентация")],
             [InlineKeyboardButton(text="Отчет дня", callback_data="Отчет дня")],
             [InlineKeyboardButton(text="Ожидание", callback_data="Ожидание")]
         ],
@@ -378,6 +378,17 @@ def quest11_finish_keyboard():
     ])
 
 
+def get_day_finish_keyboard(current_quest_id):
+    builder = InlineKeyboardBuilder()
+    builder.add(InlineKeyboardButton(
+        text="Начать новый день",
+        callback_data=f"next_quest_{current_quest_id}"
+    ))
+    return builder.as_markup()
+
+
+
+
 # Клавиатуры для квеста 12
 def quest12_keyboard(options: list[str]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -430,4 +441,12 @@ def quest14_skip_zone_keyboard():
 def quest14_finish_shooting_keyboard():
     builder = InlineKeyboardBuilder()
     builder.button(text="Завершить и отправить", callback_data="finish_quest14")
+    return builder.as_markup()
+
+def quest16_keyboard(options):
+    """Создает клавиатуру для квеста 16 с вариантами ответов"""
+    builder = InlineKeyboardBuilder()
+    for i, option in enumerate(options):
+        builder.button(text=option, callback_data=f"qw16_{i}")
+    builder.adjust(1)
     return builder.as_markup()

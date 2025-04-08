@@ -49,7 +49,7 @@ correct_answers_qw3 = {
     2: 'Фотографирование',
     3: 'Ретушь',
     4: 'Печать',
-    5: 'Демонстрация'
+    5: 'Презентация'
 
 }
 
@@ -333,7 +333,7 @@ async def quest_3(callback: types.CallbackQuery, state: FSMContext):
         },
         {
             "file_id": "BAACAgIAAxkBAAIQdWfZ7_pGQdK3VOE928wyF3OS2NOLAAI2dQACA47RSpceq4CXeMQSNgQ",
-            "description": "⭐️ *Этап 5: Демонстрация*"
+            "description": "⭐️ *Этап 5: Презентация*"
         }
     ]
 
@@ -439,7 +439,7 @@ async def ask_quest3_question(callback: types.CallbackQuery, state: FSMContext):
             print(f"Ошибка при удалении сообщения: {e}")
 
     # Задаём вопрос
-    question_text = f"Какое {current_question} действие в очереди?"
+    question_text = f"Какой следующий этап основного процесса?"
     message = await callback.message.answer(
         question_text,
         reply_markup=quest3_keyboard(current_question)
@@ -1309,7 +1309,7 @@ async def ask_test_question(callback: types.CallbackQuery, state: FSMContext):
         message = await callback.message.answer_photo(
             photo,
             caption=f"Тест: Вопрос {user_data['current_question']}/{user_data['total_questions']}\n"
-                    f"Укажите цену товара: {question_data['name']}",
+                    f"Укажите цену товара: <b>{question_data['name']}</b> \n(цены можно смотреть в прайс листе на локации)",parse_mode="HTML",
             reply_markup=quest7_keyboard(question_data["options"])
         )
 
@@ -2844,7 +2844,7 @@ async def finish_quest11(callback: types.CallbackQuery, state: FSMContext):
     # Завершаем квест
     await callback.message.delete()
     await callback.message.answer(
-        "✅ Ваш фидбек отправлен. Спасибо за участие!",
+        "✅ Ваш фидбек отправлен. Спасибо за участие!", reply_markup=get_day_finish_keyboard(11)
 
     )
 
