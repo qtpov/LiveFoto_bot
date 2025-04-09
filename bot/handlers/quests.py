@@ -2206,14 +2206,14 @@ QUEST10_CORRECT_ANSWERS = {
     "Мужской": {
         "head": 4,  # Правильный вариант для головы (мужчина)
         "top": 3,  # Правильный вариант для верха (мужчина)
-        "badge": 1,  # Правильный вариант для бейджа (мужчина)
+        "badge": 2,  # Правильный вариант для бейджа (мужчина)
         "bottom": 4,  # Правильный вариант для низа (мужчина)
-        "shoes": 5  # Правильный вариант для обуви (мужчина)
+        "shoes": 4  # Правильный вариант для обуви (мужчина)
     },
     "Женский": {
         "head": 3,  # Правильный вариант для головы (женщина)
         "top": 4,  # Правильный вариант для верха (женщина)
-        "badge": 1,  # Правильный вариант для бейджа (женщина)
+        "badge": 4,  # Правильный вариант для бейджа (женщина)
         "bottom": 3,  # Правильный вариант для низа (женщина)
         "shoes": 4  # Правильный вариант для обуви (женщина)
     }
@@ -2229,6 +2229,7 @@ def get_step_caption(step: str) -> str:
         "shoes": "5. Выбери правильный образ сотрудника 'обувь'"
     }
     return captions.get(step, "Выберите правильный вариант")
+
 async def quest_10(callback: types.CallbackQuery, state: FSMContext):
     # Удаляем предыдущие сообщения
     user_data = await state.get_data()
@@ -2329,7 +2330,7 @@ async def show_quest10_step(callback: types.CallbackQuery, state: FSMContext, st
             caption=get_step_caption(step)
         )
 
-        for i, photo_path in enumerate(photo_paths[:5], 1):  # Берем первые 5 фото
+        for i, photo_path in enumerate(photo_paths[:4], 1):  # Берем первые 5 фото
             album_builder.add_photo(
                 media=FSInputFile(str(photo_path)),
                 caption=f"Вариант {i}"
@@ -2343,7 +2344,7 @@ async def show_quest10_step(callback: types.CallbackQuery, state: FSMContext, st
 
         # Отправляем клавиатуру для выбора
         message = await callback.message.answer(
-            "Выберите правильный вариант (1-5):",
+            "Выберите правильный вариант (1-4):",
             reply_markup=quest10_choice_keyboard(step)
         )
 

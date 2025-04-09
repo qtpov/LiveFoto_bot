@@ -291,9 +291,9 @@ def quest10_start_keyboard():
     ])
 
 def quest10_choice_keyboard(step: str):
-    """Клавиатура для выбора варианта (1-5) на каждом этапе"""
+    """Клавиатура для выбора варианта (1-4) на каждом этапе"""
     builder = InlineKeyboardBuilder()
-    for i in range(1, 6):
+    for i in range(1, 5):
         builder.add(InlineKeyboardButton(
             text=str(i),
             callback_data=f"qw10_choose_{step}_{i}"
