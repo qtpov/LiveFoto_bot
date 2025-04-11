@@ -450,3 +450,9 @@ def quest16_keyboard(options):
         builder.button(text=option, callback_data=f"qw16_{i}")
     builder.adjust(1)
     return builder.as_markup()
+
+def quest19_keyboard(options):
+    keyboard = []
+    for i, option in enumerate(options):
+        keyboard.append([InlineKeyboardButton(text=option, callback_data=f"qw19_{i}")])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

@@ -1759,15 +1759,26 @@ async def finish_quest16(callback: types.CallbackQuery, state: FSMContext):
         else:
             user_result.state = "выполнен"
             user_result.result = correct_answers
-
+        if correct_answers == total_questions:
+            achievement_given = await give_achievement(callback.from_user.id, 16, session)
+            if achievement_given:
+                # Отправляем результат пользователю
+                message = await callback.message.answer(
+                    f"✅ Квест 16 завершен!\n"
+                    f"Правильных ответов: {correct_answers} из {total_questions}\n"
+                    f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!",
+                    reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 16)
+                )
+            else:
+                message = await callback.message.answer(
+                    f"✅ Квест 16 завершен!\n"
+                    f"Правильных ответов: {correct_answers} из {total_questions}",
+                    reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 16)
+                )
+        else:
+            message_text = f"Есть ошибки, попробуй заново\nВерных ответов: {correct_count} из {total_questions}"
         await session.commit()
 
-    # Отправляем результат пользователю
-    message = await callback.message.answer(
-        f"✅ Квест 16 завершен!\n"
-        f"Правильных ответов: {correct_answers} из {total_questions}",
-        reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 16)
-    )
 
     await state.update_data(question_message_id=message.message_id)
     await state.clear()
@@ -1914,14 +1925,22 @@ async def finish_quest17(callback: types.CallbackQuery, state: FSMContext):
             user_result.state = "выполнен"
             user_result.result = 3
 
+        achievement_given = await give_achievement(callback.from_user.id, 17, session)
+        if achievement_given:
+            # Отправляем результат пользователю
+            message = await callback.message.answer(
+                "✅ Квест 17 завершен!\n"
+                     "Все упражнения выполнены. Отличная работа!\n",
+                f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!",
+                reply_markup=get_quest_finish_keyboard(3, 3, 17)
+            )
+        else:
+            message = await callback.message.answer(
+                "✅ Квест 17 завершен!\n"
+                "Все упражнения выполнены. Отличная работа!",
+                reply_markup=get_quest_finish_keyboard(3, 3, 17)
+            )
         await session.commit()
-
-    # Отправляем результат пользователю
-    message = await callback.message.answer(
-        "✅ Квест 17 завершен!\n"
-        "Все упражнения выполнены. Отличная работа!",
-        reply_markup=get_quest_finish_keyboard(3, 3, 17)
-    )
 
     await state.update_data(question_message_id=message.message_id)
     await state.clear()
@@ -2127,7 +2146,7 @@ async def skip_photo_18(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(photos_remaining=photos_remaining)
 
     if photos_remaining <= 0:
-        await finish_quest18(callback.message, state)
+        await finish_quest18(callback, state)
     else:
         await callback.message.delete()
         await request_photo_18(callback, state)
@@ -2246,6 +2265,7 @@ async def quest_19(callback: types.CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
+
 @router.callback_query(F.data == "start_quest19")
 async def start_quest19(callback: types.CallbackQuery, state: FSMContext):
     # Удаляем предыдущие сообщения
@@ -2260,6 +2280,7 @@ async def start_quest19(callback: types.CallbackQuery, state: FSMContext):
     await show_quest19_step(callback, state)
     await callback.answer()
 
+
 async def show_quest19_step(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     current_step = user_data.get("current_step", 1)
@@ -2268,27 +2289,108 @@ async def show_quest19_step(callback: types.CallbackQuery, state: FSMContext):
     steps = {
         1: {
             "text": "1. Открываем вкладку Импорт",
-            "photo": "AgACAgIAAxkBAAImGWfz4xzgScJdAAGcPSyjQMhfLErttwACYPExG5DcoUu5t7Q2nJC8jgEAAwIAA3kAAzYE"
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
         },
         2: {
             "text": "2. Вставляем новую флешку в картридер",
-            "photo": "AgACAgIAAxkBAAImF2fz4xQAAfkQvZDwrTsEp4HksUCM9wACX_ExG5DcoUtTVN7oo4PozgEAAwIAA3kAAzYE"
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
         },
         3: {
             "text": "3. Мышкой «обводим» место где появилась флешка",
-            "photo": "AgACAgIAAxkBAAImD2fz4nfoKsDftnMib1kmgO3XS_gSAAJZ8TEbkNyhS3Vp4OVknUyAAQADAgADeQADNgQ"
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
         },
-        # ... остальные шаги аналогично
+        4: {
+            "text": "4. Выбираем флешку, обводим место где открылись все фотографии",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        5: {
+            "text": "5. Показываем как выбрать место куда сохранять фотографии",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        6: {
+            "text": "6. Обводим кнопку Импорт, нажимаем её",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        7: {
+            "text": "7. Обводим полоску загрузки фотографий",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        8: {
+            "text": "8. Обводим и открываем вкладку «обработка» или «редактирование»",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        9: {
+            "text": "9. Обводим снизу все фотки какие мы импортировали, выбираем первую",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        10: {
+            "text": "10. Слева обводим окошко с пресетами, выбираем какой-нибудь не автоматически применённый, потом возвращаем на автоматически применённый",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        11: {
+            "text": "11. Обводим окошко с настройками баланса белого, экспозиции и т.д.",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        12: {
+            "text": "12. Редактируем фотографию, не спеша, по возможности используя по больше инструментов",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        13: {
+            "text": "13. Редактируем остальные фотографии. Тут я просто ускорю весь процесс, главное левые окна не открывайте",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        14: {
+            "text": "14. Обводим и Открываем окно Печать",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        15: {
+            "text": "15. Обводим окно с шаблонами печати и выбираем шаблон на 6 магнитов или фотку А5\А4",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        16: {
+            "text": "16. Выбираем фотографии для шаблона",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
+        17: {
+            "text": "17. Обводим кнопку «печать…», нажимаем её",
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+        },
         18: {
             "text": "18. Обводим кнопку «Печать» и запускаем импорт",
-            "photo": "AgACAgIAAxkBAAImG2fz4yq_LS4V_tuyNEoEIGMmWCD1AAJh8TEbkNyhSz7tTj8yAeKUAQADAgADeQADNgQ"
+            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
         }
     }
 
     # Отправляем текущий шаг
     step_data = steps.get(current_step, {})
     if not step_data:
-        # Все шаги показаны, переходим к тесту
+        # Все шаги показаны, отправляем теоретическое сообщение
+        theory_message = await callback.message.answer(
+            "Теория: Алгоритм вывода на печать\n\n"
+            "1. Открываем вкладку Импорт\n"
+            "2. Вставляем новую флешку в картридер\n"
+            "3. Мышкой «обводим» место где появилась флешка\n"
+            "4. Выбираем флешку, обводим место где открылись все фотографии\n"
+            "5. Показываем как выбрать место куда сохранять фотографии\n"
+            "6. Обводим кнопку Импорт, нажимаем её\n"
+            "7. Обводим полоску загрузки фотографий\n"
+            "8. Обводим и открываем вкладку «обработка» или «редактирование»\n"
+            "9. Обводим снизу все фотки какие мы импортировали, выбираем первую\n"
+            "10. Слева обводим окошко с пресетами, выбираем какой-нибудь не автоматически применённый, потом возвращаем на автоматически применённый\n"
+            "11. Обводим окошко с настройками баланса белого, экспозиции и т.д.\n"
+            "12. Редактируем фотографию, не спеша, по возможности используя по больше инструментов\n"
+            "13. Редактируем остальные фотографии. Тут я просто ускорю весь процесс, главное левые окна не открывайте\n"
+            "14. Обводим и Открываем окно Печать\n"
+            "15. Обводим окно с шаблонами печати и выбираем шаблон на 6 магнитов или фотку А5\А4\n"
+            "16. Выбираем фотографии для шалона\n"
+            "17. Обводим кнопку «печать…», нажимаем её\n"
+            "18. Обводим кнопку «Печать» и запускаем импорт"
+        )
+
+        # Сохраняем ID теоретического сообщения для последующего удаления
+        await state.update_data(theory_message_id=theory_message.message_id)
+
+        # Переходим к тесту
         await start_quest19_test(callback, state)
         return
 
@@ -2444,6 +2546,13 @@ async def finish_quest19(callback: types.CallbackQuery, state: FSMContext):
     correct_answers = user_data.get("correct_answers", 0)
     total_questions = 5
 
+    # Удаляем теоретическое сообщение
+    try:
+        if "theory_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["theory_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении теоретического сообщения: {e}")
+
     # Сохраняем результат в БД
     async with SessionLocal() as session:
         user_result = await session.execute(
@@ -2467,14 +2576,28 @@ async def finish_quest19(callback: types.CallbackQuery, state: FSMContext):
             user_result.state = "выполнен"
             user_result.result = correct_answers
 
+        if correct_answers == total_questions:
+            achievement_given = await give_achievement(callback.from_user.id, 19, session)
+            if achievement_given:
+                # Отправляем результат пользователю
+                message = await callback.message.answer(
+                    f"✅ Квест 19 завершен!\n"
+                    f"Правильных ответов: {correct_answers} из {total_questions}\n"
+                    f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!",
+                    reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 19)
+                )
+            else:
+                message = await callback.message.answer(
+                    f"✅ Квест 19 завершен!\n"
+                    f"Правильных ответов: {correct_answers} из {total_questions}",
+                    reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 19)
+                )
+        else:
+            message_text = f"Есть ошибки, попробуй заново\nВерных ответов: {correct_count} из {total_questions}"
+
+
         await session.commit()
 
-    # Отправляем результат пользователю
-    message = await callback.message.answer(
-        f"✅ Квест 19 завершен!\n"
-        f"Правильных ответов: {correct_answers} из {total_questions}",
-        reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 19)
-    )
 
     await state.update_data(question_message_id=message.message_id)
     await state.clear()
@@ -2678,6 +2801,7 @@ async def finish_quest20(message: types.Message, state: FSMContext):
         f"Фото от {user.full_name} для квеста 20 готовы к проверке.",
         reply_markup=moderation_keyboard(message.from_user.id, 20)
     )
+    await finish_quest(message, state, correct_count, total_questions, current_quest_id)
 
     # Сообщение пользователю
     await message.answer(
