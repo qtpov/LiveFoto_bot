@@ -12,6 +12,7 @@ from pathlib import Path
 from .moderation import give_achievement, get_quest_finish_keyboard
 from bot.db.crud import update_user_level, update_user_day
 import datetime
+import asyncio
 from typing import Union
 from random import shuffle, randint
 import os
@@ -2681,7 +2682,7 @@ async def start_quest20_timer(callback: types.CallbackQuery, state: FSMContext):
     required_photos = user_data.get("required_photos", 10)
 
     while datetime.datetime.now() < end_time and photos_taken < required_photos:
-        # Обновляем таймер каждую минуту
+        # Обновляем таймер каждую секунду
         remaining = end_time - datetime.datetime.now()
         minutes, seconds = divmod(remaining.seconds, 60)
 
@@ -2701,15 +2702,15 @@ async def start_quest20_timer(callback: types.CallbackQuery, state: FSMContext):
                     [InlineKeyboardButton(text="Завершить досрочно", callback_data="finish_quest20_early")]
                 ])
             )
-        except:
-            pass
+        except Exception as e:
+            print(f"Ошибка при обновлении таймера: {e}")
 
         await asyncio.sleep(1)  # Обновляем каждую секунду
         user_data = await state.get_data()
         photos_taken = user_data.get("photos_taken", 0)
 
     # Время вышло или все фото сделаны
-    await finish_quest20(callback.message, state)
+    await finish_quest20(callback, state)
 
 @router.message(F.photo, QuestState.waiting_for_photo_quest20)
 async def handle_photo_quest20(message: types.Message, state: FSMContext):
@@ -2741,10 +2742,17 @@ async def finish_quest20_early(callback: types.CallbackQuery, state: FSMContext)
         await callback.answer("Нельзя завершить без ни одного фото", show_alert=True)
         return
 
-    await finish_quest20(callback.message, state)
+    await finish_quest20(callback, state)
     await callback.answer()
 
-async def finish_quest20(message: types.Message, state: FSMContext):
+
+async def finish_quest20(event: Union[types.CallbackQuery, types.Message], state: FSMContext):
+    # Получаем объект message в зависимости от типа события
+    if isinstance(event, types.CallbackQuery):
+        message = event.message
+    else:
+        message = event
+
     user_data = await state.get_data()
     user_photos = user_data.get("user_photos", [])
     photos_taken = len(user_photos)
@@ -2785,23 +2793,16 @@ async def finish_quest20(message: types.Message, state: FSMContext):
         f"Сделано фото: {photos_taken}/{required_photos}"
     )
 
-    # Отправляем фото модератору
-    media = MediaGroupBuilder()
-    for i, photo in enumerate(user_photos):
-        if i == 0:
-            media.add_photo(media=photo, caption=caption)
-        else:
-            media.add_photo(media=photo)
+    # Отправляем фото модератору (только одно сообщение)
+    if user_photos:
+        media = MediaGroupBuilder()
+        for i, photo in enumerate(user_photos):
+            if i == 0:
+                media.add_photo(media=photo, caption=caption)
+            else:
+                media.add_photo(media=photo)
 
-    await message.bot.send_media_group(admin_chat_id, media=media.build())
-
-    # Дополнительная информация для модератора
-    await message.bot.send_message(
-        admin_chat_id,
-        f"Фото от {user.full_name} для квеста 20 готовы к проверке.",
-        reply_markup=moderation_keyboard(message.from_user.id, 20)
-    )
-    await finish_quest(message, state, correct_count, total_questions, current_quest_id)
+        await message.bot.send_media_group(admin_chat_id, media=media.build())
 
     # Сообщение пользователю
     await message.answer(
@@ -2810,7 +2811,6 @@ async def finish_quest20(message: types.Message, state: FSMContext):
         reply_markup=types.ReplyKeyboardRemove()
     )
     await state.clear()
-
 
 
 # Обработчик для всех остальных ответов
