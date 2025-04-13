@@ -2611,6 +2611,8 @@ async def quest_20(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.delete()
         if "question_message_id" in user_data:
             await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+        if "timer_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["timer_message_id"])
     except Exception as e:
         print(f"Ошибка при удалении сообщений: {e}")
 
@@ -2652,7 +2654,8 @@ async def start_quest20(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(
         timer_started=True,
         start_time=datetime.datetime.now(),
-        user_photos=[]
+        user_photos=[],
+        timer_active=True
     )
 
     # Отправляем сообщение с таймером
@@ -2671,8 +2674,9 @@ async def start_quest20(callback: types.CallbackQuery, state: FSMContext):
         question_message_id=message.message_id
     )
     await state.set_state(QuestState.waiting_for_photo_quest20)
-    await start_quest20_timer(callback, state)
+    asyncio.create_task(start_quest20_timer(callback, state))
     await callback.answer()
+
 
 async def start_quest20_timer(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
@@ -2680,9 +2684,9 @@ async def start_quest20_timer(callback: types.CallbackQuery, state: FSMContext):
     end_time = start_time + datetime.timedelta(minutes=10)
     photos_taken = user_data.get("photos_taken", 0)
     required_photos = user_data.get("required_photos", 10)
+    timer_active = user_data.get("timer_active", True)
 
-    while datetime.datetime.now() < end_time and photos_taken < required_photos:
-        # Обновляем таймер каждую секунду
+    while datetime.datetime.now() < end_time and photos_taken < required_photos and timer_active:
         remaining = end_time - datetime.datetime.now()
         minutes, seconds = divmod(remaining.seconds, 60)
 
@@ -2704,19 +2708,31 @@ async def start_quest20_timer(callback: types.CallbackQuery, state: FSMContext):
             )
         except Exception as e:
             print(f"Ошибка при обновлении таймера: {e}")
+            break
 
-        await asyncio.sleep(1)  # Обновляем каждую секунду
+        await asyncio.sleep(1)
         user_data = await state.get_data()
         photos_taken = user_data.get("photos_taken", 0)
+        timer_active = user_data.get("timer_active", True)
 
-    # Время вышло или все фото сделаны
-    await finish_quest20(callback, state)
+    if timer_active:
+        await finish_quest20(callback, state)
 
 @router.message(F.photo, QuestState.waiting_for_photo_quest20)
 async def handle_photo_quest20(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
+    if user_data.get("quest_completed", False):
+        await message.delete()
+        return
+
     photos_taken = user_data.get("photos_taken", 0)
     user_photos = user_data.get("user_photos", [])
+    required_photos = user_data.get("required_photos", 10)
+
+    # Если уже собрано достаточно фото, игнорируем новые
+    if photos_taken >= required_photos:
+        await message.delete()
+        return
 
     # Добавляем фото в список
     user_photos.append(message.photo[-1].file_id)
@@ -2728,10 +2744,11 @@ async def handle_photo_quest20(message: types.Message, state: FSMContext):
     )
 
     # Проверяем, все ли фото собраны
-    if photos_taken >= user_data.get("required_photos", 10):
+    if photos_taken >= required_photos:
         await finish_quest20(message, state)
 
     await message.delete()
+
 
 @router.callback_query(F.data == "finish_quest20_early")
 async def finish_quest20_early(callback: types.CallbackQuery, state: FSMContext):
@@ -2742,27 +2759,47 @@ async def finish_quest20_early(callback: types.CallbackQuery, state: FSMContext)
         await callback.answer("Нельзя завершить без ни одного фото", show_alert=True)
         return
 
+    await state.update_data(timer_active=False)
     await finish_quest20(callback, state)
     await callback.answer()
 
 
-async def finish_quest20(event: Union[types.CallbackQuery, types.Message], state: FSMContext):
-    # Получаем объект message в зависимости от типа события
-    if isinstance(event, types.CallbackQuery):
-        message = event.message
-    else:
-        message = event
-
+async def finish_quest20(event: Union[types.Message, types.CallbackQuery], state: FSMContext):
+    # Проверяем, не завершен ли уже квест
     user_data = await state.get_data()
+    if user_data.get("quest_completed", False):
+        return
+
+    # Помечаем квест как завершенный
+    await state.update_data(quest_completed=True)
+
+    # Универсальная обработка входящего объекта
+    if isinstance(event, types.CallbackQuery):
+        user = event.from_user
+        chat_id = event.message.chat.id
+        bot = event.bot
+        message = event.message  # Получаем объект Message
+    else:
+        user = event.from_user
+        chat_id = event.chat.id
+        bot = event.bot
+
     user_photos = user_data.get("user_photos", [])
-    photos_taken = len(user_photos)
     required_photos = user_data.get("required_photos", 10)
+    photos_taken = len(user_photos)
+
+    # Удаляем сообщение с таймером если оно есть
+    try:
+        if "timer_message_id" in user_data:
+            await bot.delete_message(chat_id, user_data["timer_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения с таймером: {e}")
 
     # Сохраняем в БД
     async with SessionLocal() as session:
         user_result = await session.execute(
             select(UserResult).filter(
-                UserResult.user_id == message.from_user.id,
+                UserResult.user_id == user.id,
                 UserResult.quest_id == 20
             )
         )
@@ -2770,7 +2807,7 @@ async def finish_quest20(event: Union[types.CallbackQuery, types.Message], state
 
         if not user_result:
             user_result = UserResult(
-                user_id=message.from_user.id,
+                user_id=user.id,
                 quest_id=20,
                 state="на модерации",
                 attempt=1,
@@ -2780,11 +2817,11 @@ async def finish_quest20(event: Union[types.CallbackQuery, types.Message], state
         else:
             user_result.state = "на модерации"
             user_result.result = photos_taken
+            user_result.attempt += 1
 
         await session.commit()
 
     # Формируем сообщение для модератора
-    user = message.from_user
     username = f"@{user.username}" if user.username else f"ID: {user.id}"
     caption = (
         f"📸 Квест 20 - Время и Кадры\n"
@@ -2793,23 +2830,51 @@ async def finish_quest20(event: Union[types.CallbackQuery, types.Message], state
         f"Сделано фото: {photos_taken}/{required_photos}"
     )
 
-    # Отправляем фото модератору (только одно сообщение)
+    # Отправляем фото модератору (разбиваем на группы по 10 фото)
     if user_photos:
-        media = MediaGroupBuilder()
-        for i, photo in enumerate(user_photos):
-            if i == 0:
-                media.add_photo(media=photo, caption=caption)
-            else:
-                media.add_photo(media=photo)
+        try:
+            # Разбиваем фото на группы по 10
+            for i in range(0, len(user_photos), 10):
+                photo_group = user_photos[i:i + 10]
+                media = MediaGroupBuilder()
 
-        await message.bot.send_media_group(admin_chat_id, media=media.build())
+                for j, photo in enumerate(photo_group):
+                    if i == 0 and j == 0:  # Добавляем подпись только к первому фото первой группы
+                        media.add_photo(media=photo, caption=caption)
+                    else:
+                        media.add_photo(media=photo)
+
+                await bot.send_media_group(admin_chat_id, media=media.build())
+        except Exception as e:
+            print(f"Ошибка при отправке медиагруппы: {e}")
+            await bot.send_message(
+                admin_chat_id,
+                f"⚠️ Ошибка при отправке фото от {user.full_name} для квеста 20"
+            )
+
+    # Отправляем кнопки модерации только если есть хотя бы одно фото
+    if photos_taken > 0:
+        await bot.send_message(
+            admin_chat_id,
+            f"Фото от {user.full_name} для квеста 20 готовы к проверке.\n"
+            f"Отправлено фото: {photos_taken}/{required_photos}",
+            reply_markup=moderation_keyboard(user.id, 20)
+        )
+    else:
+        await bot.send_message(
+            admin_chat_id,
+            f"⚠️ Пользователь {user.full_name} завершил квест 20 без фото"
+        )
 
     # Сообщение пользователю
-    await message.answer(
+    await bot.send_message(
+        chat_id,
         f"✅ Квест завершен! Сделано фото: {photos_taken}/{required_photos}\n"
         "Фото отправлены на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
+
+    # Очищаем состояние
     await state.clear()
 
 
