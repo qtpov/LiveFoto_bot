@@ -6,10 +6,12 @@ class QuestState(StatesGroup):
     # Общие состояния
     waiting_for_answer = State()
     waiting_for_moderation = State()
+    waiting_for_moderation_comment = State()
     waiting_for_comment = State()
 
     waiting_for_answer_quest16 = State()
     waiting_for_answer_quest19 = State()
+    waiting_for_answer_quest22 = State()
 
 
     # Состояния для квеста 4
@@ -55,3 +57,10 @@ class QuestState(StatesGroup):
     waiting_for_team = State()
     waiting_for_uniform = State()
     waiting_for_uniform_suggestions = State()
+
+    # Состояния для квеста 9
+    waiting_for_colleagues_count_21 = State()
+    waiting_for_colleague_position_21 = State()
+    waiting_for_colleague_surname_21 = State()
+    waiting_for_colleague_name_21 = State()
+    waiting_for_colleague_telegram_21 = State()

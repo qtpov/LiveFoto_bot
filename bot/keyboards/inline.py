@@ -456,3 +456,15 @@ def quest19_keyboard(options):
     for i, option in enumerate(options):
         keyboard.append([InlineKeyboardButton(text=option, callback_data=f"qw19_{i}")])
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def quest21_position_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Фотограф", callback_data="qw21_position_фотограф")],
+        [InlineKeyboardButton(text="Старший смены", callback_data="qw21_position_старший смены")],
+        [InlineKeyboardButton(text="Администратор локации", callback_data="qw21_position_администратор локации")]
+    ])
+
+def quest21_cancel_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_quest21")]
+    ])

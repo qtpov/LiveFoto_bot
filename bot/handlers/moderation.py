@@ -308,3 +308,197 @@ async def cancel_moderation(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.delete()
     await callback.message.answer("Модерация отменена")
     await callback.answer()
+
+
+# Модерация квеста 22
+@moderation_router.callback_query(F.data.startswith("acc_22_"))
+async def accept_quest22(callback: types.CallbackQuery):
+    try:
+        user_id = int(callback.data.split('_')[2])
+
+        # Обновляем статус в БД
+        async with SessionLocal() as session:
+            user_result = await session.execute(
+                select(UserResult).where(
+                    UserResult.user_id == user_id,
+                    UserResult.quest_id == 22
+                )
+            )
+            user_result = user_result.scalars().first()
+
+            if user_result:
+                user_result.state = "выполнен"
+                user_result.result = 100  # 100% выполнено
+                await session.commit()
+
+        # Удаляем кнопки
+        await callback.message.edit_reply_markup(reply_markup=None)
+
+        # Уведомляем пользователя
+        await callback.bot.send_message(
+            user_id,
+            "✅ Ваши ответы приняты модератором! Поздравляем с успешным прохождением квеста!",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 В главное меню", callback_data="main_menu")]]
+            )
+        )
+
+        await callback.answer("Ответы приняты")
+    except Exception as e:
+        logging.error(f"Ошибка при принятии квеста 22: {e}")
+        await callback.answer("⚠️ Ошибка при обработке", show_alert=True)
+
+
+@moderation_router.callback_query(F.data.startswith("rej_22_"))
+async def reject_quest22(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        user_id = int(callback.data.split('_')[2])
+        user_data = await state.get_data()
+        user_answers = user_data.get("user_answers", {})
+
+        # Проверяем, есть ли ответы
+        if not user_answers:
+            await callback.answer("Нет ответов для модерации", show_alert=True)
+            return
+
+        # Создаем кнопки для каждого вопроса
+        buttons = []
+        for q_num in sorted(user_answers.keys(), key=int):
+            buttons.append(
+                InlineKeyboardButton(
+                    text=f"Вопрос {q_num}",
+                    callback_data=f"select_22_{user_id}_{q_num}"
+                )
+            )
+
+        # Разбиваем кнопки на ряды по 3 для лучшего отображения
+        keyboard = []
+        for i in range(0, len(buttons), 3):
+            keyboard.append(buttons[i:i + 3])
+
+        # Добавляем кнопку завершения
+        keyboard.append([
+            InlineKeyboardButton(
+                text="✅ Завершить выбор",
+                callback_data=f"finish_select_22_{user_id}"
+            )
+        ])
+
+        # Создаем клавиатуру
+        reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+        # Отправляем сообщение с клавиатурой
+        await callback.message.edit_text(
+            "Выберите вопросы, которые нужно переделать:",
+            reply_markup=reply_markup
+        )
+
+        # Сохраняем данные в state
+        await state.update_data(
+            target_user_id=user_id,
+            original_message_id=callback.message.message_id,
+            questions_to_redo=[]
+        )
+
+        await callback.answer()
+    except Exception as e:
+        logging.error(f"Ошибка в reject_quest22: {str(e)}")
+        await callback.answer("⚠️ Ошибка при обработке", show_alert=True)
+
+
+@moderation_router.callback_query(F.data.startswith("select_22_"))
+async def select_question(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        _, _, user_id, q_num = callback.data.split('_')
+        question_num = int(q_num)
+
+        # Получаем текущую клавиатуру
+        keyboard = callback.message.reply_markup.inline_keyboard
+
+        # Обновляем текст кнопки
+        for row in keyboard:
+            for button in row:
+                if button.callback_data == callback.data:
+                    if "✅" in button.text:
+                        button.text = f"Вопрос {q_num}"
+                    else:
+                        button.text = f"✅ Вопрос {q_num}"
+
+        # Обновляем сообщение
+        await callback.message.edit_reply_markup(
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+        logging.error(f"Ошибка выбора вопроса: {str(e)}")
+        await callback.answer("⚠️ Ошибка при выборе", show_alert=True)
+
+
+@moderation_router.callback_query(F.data.startswith("finish_select_22_"))
+async def finish_selection(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        user_id = int(callback.data.split('_')[3])
+
+        # Анализируем выбранные вопросы
+        keyboard = callback.message.reply_markup.inline_keyboard
+        selected_questions = []
+
+        for row in keyboard:
+            for button in row:
+                if "✅" in button.text:
+                    q_num = button.callback_data.split('_')[3]
+                    selected_questions.append(int(q_num))
+
+        if not selected_questions:
+            await callback.answer("Выберите хотя бы один вопрос", show_alert=True)
+            return
+
+        # Запрашиваем комментарий
+        await callback.message.edit_text(
+            "Введите комментарий для пользователя:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_comment")]
+            ])
+        )
+
+        # Сохраняем выбранные вопросы
+        await state.update_data(
+            selected_questions=selected_questions,
+            target_user_id=user_id
+        )
+        await state.set_state(QuestState.waiting_for_comment)
+
+    except Exception as e:
+        logging.error(f"Ошибка завершения выбора: {str(e)}")
+        await callback.answer("⚠️ Ошибка обработки", show_alert=True)
+
+@moderation_router.message(QuestState.waiting_for_comment)
+async def send_rejection_comment(message: types.Message, state: FSMContext):
+    try:
+        user_data = await state.get_data()
+        user_id = user_data["target_user_id"]
+        questions_to_redo = user_data.get("questions_to_redo", [])
+        comment = message.text
+
+        # Формируем текст с вопросами для переделки
+        questions_text = "\n".join([f"• Вопрос {q_num}" for q_num in sorted(questions_to_redo)])
+
+        # Отправляем пользователю
+        await message.bot.send_message(
+            user_id,
+            f"📝 Ваши ответы требуют доработки:\n\n"
+            f"Нужно исправить следующие вопросы:\n{questions_text}\n\n"
+            f"Комментарий модератора:\n{comment}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Пройти заново", callback_data="retry_quest_22")]]
+            )
+        )
+
+        await message.answer("✅ Комментарий отправлен пользователю")
+    except Exception as e:
+        logging.error(f"Ошибка при отправке комментария: {e}")
+        await message.answer("⚠️ Ошибка при отправке комментария")
+    finally:
+        await state.clear()

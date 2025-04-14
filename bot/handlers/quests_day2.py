@@ -12,6 +12,8 @@ from pathlib import Path
 from .moderation import give_achievement, get_quest_finish_keyboard
 from bot.db.crud import update_user_level, update_user_day
 import datetime
+import json
+import logging
 import asyncio
 from typing import Union
 from random import shuffle, randint
@@ -2876,6 +2878,666 @@ async def finish_quest20(event: Union[types.Message, types.CallbackQuery], state
 
     # Очищаем состояние
     await state.clear()
+
+
+# Квест 21 - Знакомство с коллегами (копия из прошлого дня)
+async def quest_21(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Запрашиваем количество коллег
+    message = await callback.message.answer(
+        "Квест 21: Знакомство с коллегами\n"
+        "Сколько коллег работает с вами на смене? (Введите число)",
+        reply_markup=quest9_cancel_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        colleagues_data=[],
+        current_colleague=1
+    )
+    await state.set_state(QuestState.waiting_for_colleagues_count_21)
+    await callback.answer()
+
+
+@router.message(QuestState.waiting_for_colleagues_count_21)
+async def handle_colleagues_count_21(message: types.Message, state: FSMContext):
+    try:
+        colleagues_count = int(message.text)
+        if colleagues_count < 1 or colleagues_count > 20:
+            raise ValueError
+    except ValueError:
+        await message.answer("Пожалуйста, введите корректное число (от 1 до 20).")
+        return
+
+    await message.delete()
+    user_data = await state.get_data()
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    await state.update_data(colleagues_count=colleagues_count)
+    await ask_colleague_info_21(message, state)
+
+
+async def ask_colleague_info_21(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    current_colleague = user_data.get("current_colleague", 1)
+    colleagues_count = user_data.get("colleagues_count", 1)
+
+    if current_colleague > colleagues_count:
+        # Всех коллег опросили, отправляем на модерацию
+        await send_colleagues_to_moderation_21(message, state)
+        return
+
+    # Запрашиваем информацию о коллеге
+    question = await message.answer(
+        f"Коллега {current_colleague} из {colleagues_count}:\n"
+        "1. Выберите должность:",
+        reply_markup=quest21_position_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=question.message_id,
+        current_colleague=current_colleague
+    )
+    await state.set_state(QuestState.waiting_for_colleague_position_21)
+
+
+@router.callback_query(F.data.startswith("qw21_position_"), QuestState.waiting_for_colleague_position_21)
+async def handle_colleague_position_21(callback: types.CallbackQuery, state: FSMContext):
+    position = callback.data.split("_")[-1]
+
+    await callback.message.delete()
+    await state.update_data(current_position=position)
+
+    # Запрашиваем фамилию
+    surnames = ["Алиева", "Белюкова", "Бережной", "Бугрышева", "Глухов", "Горкунов",
+                "Захарова", "Шептун", "Денисламова", "Денисов", "Дорофеев", "Дорохина",
+                "Дмитриев", "Иванов", "Камаев", "Киршина", "Кочетов", "Ильин",
+                "Ирназаров", "Косарева", "Маликова", "Мартенс", "Никифорова",
+                "Пучкина", "Мухаметчина", "Першукова", "Рахманова", "Семенов",
+                "Скрябина", "Лясс", "Томилова", "Уоррен", "Чудновская", "Хаов", "Эрлих"]
+
+    builder = InlineKeyboardBuilder()
+    for surname in surnames:
+        builder.button(text=surname, callback_data=f"qw21_surname_{surname}")
+    builder.adjust(3)
+
+    question = await callback.message.answer(
+        "2. Выберите фамилию коллеги:",
+        reply_markup=builder.as_markup()
+    )
+
+    await state.update_data(question_message_id=question.message_id)
+    await state.set_state(QuestState.waiting_for_colleague_surname_21)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("qw21_surname_"), QuestState.waiting_for_colleague_surname_21)
+async def handle_colleague_surname_21(callback: types.CallbackQuery, state: FSMContext):
+    surname = callback.data.split("_", 2)[-1]
+
+    await callback.message.delete()
+    await state.update_data(current_surname=surname)
+
+    # Запрашиваем имя
+    question = await callback.message.answer(
+        "3. Введите имя коллеги:",
+        reply_markup=quest21_cancel_keyboard()
+    )
+
+    await state.update_data(question_message_id=question.message_id)
+    await state.set_state(QuestState.waiting_for_colleague_name_21)
+    await callback.answer()
+
+
+@router.message(QuestState.waiting_for_colleague_name_21)
+async def handle_colleague_name_21(message: types.Message, state: FSMContext):
+    name = message.text.strip()
+    if not name:
+        await message.answer("Пожалуйста, введите имя.")
+        return
+
+    await message.delete()
+    user_data = await state.get_data()
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    await state.update_data(current_name=name)
+
+    # Запрашиваем телеграм
+    question = await message.answer(
+        "4. Введите имя пользователя в Telegram (например, @username):",
+        reply_markup=quest21_cancel_keyboard()
+    )
+
+    await state.update_data(question_message_id=question.message_id)
+    await state.set_state(QuestState.waiting_for_colleague_telegram_21)
+
+
+@router.message(QuestState.waiting_for_colleague_telegram_21)
+async def handle_colleague_telegram_21(message: types.Message, state: FSMContext):
+    telegram = message.text.strip()
+    if not telegram:
+        await message.answer("Пожалуйста, введите имя пользователя.")
+        return
+
+    await message.delete()
+    user_data = await state.get_data()
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    # Сохраняем данные о коллеге
+    colleagues_data = user_data.get("colleagues_data", [])
+    colleagues_data.append({
+        "position": user_data.get("current_position"),
+        "surname": user_data.get("current_surname"),
+        "name": user_data.get("current_name"),
+        "telegram": telegram
+    })
+
+    # Переходим к следующему коллеге
+    current_colleague = user_data.get("current_colleague", 1) + 1
+    await state.update_data(
+        colleagues_data=colleagues_data,
+        current_colleague=current_colleague
+    )
+
+    await ask_colleague_info_21(message, state)
+
+
+async def send_colleagues_to_moderation_21(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    colleagues_data = user_data.get("colleagues_data", [])
+
+    # Формируем сообщение для модератора
+    report_text = "📋 Отчет по квесту 21 (Знакомство с коллегами):\n\n"
+    report_text += f"👤 Сотрудник: {message.from_user.full_name} (@{message.from_user.username or 'нет'})\n"
+    report_text += f"📅 Дата: {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+    report_text += "Список коллег:\n"
+
+    for i, colleague in enumerate(colleagues_data, 1):
+        report_text += (
+            f"{i}. {colleague['surname']} {colleague['name']}\n"
+            f"   Должность: {colleague['position']}\n"
+            f"   Telegram: {colleague['telegram']}\n\n"
+        )
+
+    # Отправляем модератору
+    await message.bot.send_message(
+        admin_chat_id,
+        report_text,
+        reply_markup=moderation_keyboard(message.from_user.id, 21)
+    )
+
+    # Сохраняем в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == message.from_user.id,
+                UserResult.quest_id == 21
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=message.from_user.id,
+                quest_id=21,
+                state="на модерации",
+                attempt=1,
+                result=0
+            )
+            session.add(user_result)
+        else:
+            user_result.state = "на модерации"
+
+        await session.commit()
+
+    # Сообщаем пользователю
+    await message.answer(
+        "✅ Данные о коллегах отправлены на модерацию. Ожидайте проверки.",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+    await state.clear()
+
+
+@router.callback_query(F.data == "cancel_quest21")
+async def cancel_quest21(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.delete()
+    await callback.message.answer("Квест отменен")
+    await callback.answer()
+
+
+# Квест 22 - Этапы продаж
+async def quest_22(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Этапы продаж
+    stages = [
+        {
+            "number": 1,
+            "name": "Подготовка",
+            "description": "Самый первый этап продаж, он начинается ещё до выхода в фотозону. Суть его сводится к максимальному сбору информации, то есть какое количество семей зашло, какого возраста дети, сколько детей в семье(один или есть братья/сёстры), и ресурсов, которые могут пригодиться при общении с клиентом, а именно эмоциональный настрой сотрудника, мотивация на продажу и немаловжно - внешний вид, который должен соответсвовать регламентам компнаии."
+        },
+        {
+            "number": 2,
+            "name": "Вступление в контакт",
+            "description": "Вступление в контакт – это начало диалога с потенциальным клиентом. Правильно установленный контакт подразумевает собой:\n- Хорошее первое впечатление\n- Привлечение внимания клиента\n- Представление себя\nЕсли Вы понравились, то понравятся Ваши фотографии и наоборот. Ошибка продавцов/фотографов на этапе вхождения в контакт в том, что вы пытаетесь вести себя неестественно. Вся эта неискренность, шансов на удачу не прибавляет, а только отпугивает людей."
+        },
+        {
+            "number": 3,
+            "name": "Фотографирование",
+            "description": "Фотографирование – это процесс съемки, запечатления объекта, в нашем случае это семьи, дети, родители и их эмоции, памятные моменты (например, дни рождения) на фотокамеру. На данном этапе важно поддерживать диалог с клиентом, что позволит не уйти клиенту в собственные мысли, а так же поддержание диалога напрямую влияет на результат съёмки. И самое главное не забывать про качество и разнообразие кадров! В процессе фотографирования вы можете выявлять потребности клиента, это пригодится вам в дальнейшиъ этапах. Вы должны делать такие фотографии, чтобы сами хотели приобрести, и которые клиенты(родители) не смогут сделать сами на свои смартфоны."
+        },
+        {
+            "number": 4,
+            "name": "Обработка импорта",
+            "description": "Обработка импорта – процесс загрузки фотографий с флеш-карты в программу компьютера Lightroom, импортирование их в папку фотографов, редактирование во вкладке «коррекция». Не менее важный этап: нужно следить за работой фотографа, указывать на ошибки и следить за их исправлением, также исправлять некоторые недочёты уже в самом Лайтруме и доводить фотографию до шикарного результата."
+        },
+        {
+            "number": 5,
+            "name": "Печать продукции",
+            "description": "Печать продукции - это процесс перенесения отредактированных кадров с Lightroom на бумажный носитель (фотобумага) и преобразование готовых фотографий в нашу продукцию. Важно следить за качеством печати и состоянием продукции (например, чтобы не были позарапаны стёкла на рамках). Здесь важно не забывать делать упор на ту, продукцию, в которой клиент больше заинтересован, а это можно было выявить на этапе фотографирования при выявлении потребностей, например клиент озвучивает, что часто бывает в парке и у него уже есть магниты, в этом случае важно сделать упор на печать той продукции, которой у него еще нет, дополнительная и оригинальная продукция."
+        },
+        {
+            "number": 6,
+            "name": "Презентация продукции на стенде",
+            "description": "Презентация товара - важнейший этап, который демонстрирует нашу продукцию и мотивирует на покупку. На стенде должны быть прайс, табличка о запрете съёмки и вся продукция, чтобы продавец мог рассказать и показать все возможные вариантые. Важно не хаотично и как попало презентовать продукцию, а аккуратно и красиво разложить, чтобы еще издалека стенд привлекал покупателя. Для хорошей презентации понадобится:\n- Знание продукта\n- Правильная манера и способ донесения информации до покупателя\n- Умение выявлять скрытые потребности клиента"
+        },
+        {
+            "number": 7,
+            "name": "Объявление цены",
+            "description": "Объявление цены - этап, когда требуется озвучить цену на имеющуюся продукцию, чаще всего вопрос о стоимости возникает у покупателя, а продавец должен грамотно ответить на этот вопрос, рассказывая о достоинствах продукции. Начинать озвучивать цены нужно с самой большой цены и двигаться к самой маленькой. Не делайте паузу после объявления цены. Ведь это самый дискомфортный момент в продажах. Здесь эмоции спадают и начинается прощания с деньгами. И если клиент колеблется, то в этот момент ему проще всего отказать и перестать далее слушать. Чтобы избежать этого, используйте технику «Проезд». Назовите цену и без паузы продолжайте поддерживать общение или задайте какой-то уместный вопрос, выявляющий потребности или наталкивающий на покупку."
+        },
+        {
+            "number": 8,
+            "name": "Работа с возражениями",
+            "description": "Работа с возражениями - это отработка аргументами над отказами от клиента. Многие считают, что работа с возражениями, это противостояние продавца и клиента. Некоторые называют этот этап — борьба с возражениями и видимо как-то действительно борются с клиентами. Но это смешно, ведь клиенты никому ничего не должны. На самом деле работа с возражениями — это не борьба, а банальное прояснение. Прояснение того, какое конкретное сомнение кроется за сказанным возражением. А далее Вам всего лишь нужно привести аргумент, который поможет это сомнение снять. Работу со всеми возражениями, можно свести к одному вопросу: «Скажите пожалуйста, почему Вы считаете, что…». А далее основная задача продавца снять сомнение исходя из возражения."
+        },
+        {
+            "number": 9,
+            "name": "Завершение продажи",
+            "description": "Завершение продажи - это согласие клиента на покупку и проведение самой оплаты. Ошибка в том, что многие продавцы либо вообще не используют техники завершения продаж и упускают клиента, либо завершают продажи, когда это неуместно. На самом деле есть простые вопросы, которые позволят Вам понять степень готовности клиента к покупке. К примеру:\n- Как Вам фотографии в целом?\n- Вам же эти фотографии упаковать? (здесь нужно указать на выбранные фото и сделать жест «согласия» головой, кивать)\n- У Вас оплата картой или наличными?\n- Какие фотографии Вам упаковать?"
+        },
+        {
+            "number": 10,
+            "name": "Увеличение чека",
+            "description": "Увеличение чека - это повышение общей стоимости покупки засчёт предложения альтернативной продукции или скидок согласно регламентированным в компании пакетам акций. После оформления продажи, не забывайте о способах увеличения суммы чека. Самый простой способ увеличить чек, это предложить клиенту другие варианты продукции или «пакеты»."
+        },
+        {
+            "number": 11,
+            "name": "Удержание клиента",
+            "description": "Удержание клиента - это закладывание базы для осуществления продажи с этим клиентом в перспективе. Как пример:\n- Спросить у покупателя после завершения продажи, какую ещё продукцию он хотел бы видеть в нашем ассортименте\n- Уточнить у родителя, когда день рождение у ребёнка, и предложить провести фотопрогулку\n- Узнать есть ли какие то пожелания или претензии для быстрого исправления и повышения качества наших услуг\n- Предложить подписаться на соц. сети компании, чтобы быть в курсе нововведений и участвовать в розыгрышах\nПомните, привлечение нового клиента обходится примерно в 7 раз дороже продажи старому клиенту."
+        },
+        {
+            "number": 12,
+            "name": "Анализ продажи",
+            "description": "Анализ продажи - это этап про развитие продавца. Важно провести анализ диалога с клиентом и к какому результату привёл данный диалог - продажа или отказ? Как мог сотрудник еще обработать возражение, чтобы результатом диалога была продажа. Провести небольшой мозговой штурм, а в дальнейшем обязательно применить новые варианты обработки возражений или подход к клиенту при новом взаимодействии с клиентом."
+        }
+    ]
+
+    # Сохраняем этапы в state
+    await state.update_data(
+        stages=stages,
+        current_stage=0,
+        stage_message_ids=[],
+        test_mode=False,
+        user_answers={},  # Словарь для хранения ответов пользователя
+        current_question=1,
+        total_questions=12
+    )
+
+    # Начинаем показ первого этапа
+    await show_next_stage_22(callback, state)
+    await callback.answer()
+
+
+async def show_next_stage_22(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_stage = user_data.get("current_stage", 0)
+    stages = user_data.get("stages", [])
+    stage_message_ids = user_data.get("stage_message_ids", [])
+
+    # Удаляем предыдущее сообщение с кнопкой
+    if "stage_message_id" in user_data:
+        try:
+            await callback.message.delete()
+        except Exception as e:
+            print(f"Ошибка при удалении сообщения: {e}")
+
+    # Проверяем, есть ли еще этапы для показа
+    if current_stage < len(stages):
+        stage_data = stages[current_stage]
+
+        if current_stage == 0:
+             sent_message = await callback.message.answer(
+                 f"Квест 22: Этапы продаж \n\n"
+                 f"В компании LIVEFOTO выделенны 12 этапов продаж, каждый из них важен,потому что ведёт к нужному результату! \n"
+                 f"📌 Этап {stage_data['number']}: {stage_data['name']}\n\n"
+                 f"{stage_data['description']}",
+                 parse_mode="Markdown"
+             )
+             stage_message_ids.append(sent_message.message_id)
+        else:
+            sent_message = await callback.message.answer(
+                f"📌 Этап {stage_data['number']}: {stage_data['name']}\n\n"
+                f"{stage_data['description']}",
+                parse_mode="Markdown"
+            )
+            stage_message_ids.append(sent_message.message_id)
+
+        # Создаем клавиатуру (Далее или Приступить к тесту для последнего шага)
+        if current_stage < len(stages) - 1:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Далее →", callback_data="next_stage_22")]
+            ])
+            action_text = "Нажмите 'Далее' для продолжения"
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Приступить к тесту", callback_data="start_quest22_test")]
+            ])
+            action_text = "После просмотра всех этапов нажмите 'Приступить к тесту'"
+
+        # Отправляем сообщение с кнопкой
+        stage_message = await callback.message.answer(
+            action_text,
+            reply_markup=keyboard
+        )
+
+        # Обновляем состояние
+        await state.update_data(
+            current_stage=current_stage + 1,
+            stage_message_ids=stage_message_ids,
+            stage_message_id=stage_message.message_id
+        )
+    else:
+        # Все этапы показаны, можно начинать тест
+        await start_quest22_test(callback, state)
+
+
+@router.callback_query(F.data == "next_stage_22")
+async def handle_next_stage_22(callback: types.CallbackQuery, state: FSMContext):
+    await show_next_stage_22(callback, state)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "start_quest22_test")
+async def start_quest22_test(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "stage_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["stage_message_id"])
+        if "stage_message_ids" in user_data:
+            for msg_id in user_data["stage_message_ids"]:
+                await callback.bot.delete_message(callback.message.chat.id, msg_id)
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Начинаем тест
+    await state.update_data(
+        test_mode=True,
+        current_question=1,
+        user_answers={},
+        total_questions=12
+    )
+    await ask_quest22_question(callback.message, state)
+    await callback.answer()
+
+async def ask_quest22_question(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
+
+    # Удаляем предыдущее сообщение, если оно есть
+    if "question_message_id" in user_data:
+        try:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+        except Exception as e:
+            print(f"Ошибка при удалении сообщения: {e}")
+
+    # Вопросы теста
+    questions = {
+        1: {
+            "text": "1. Подготовка\nЧто важно сделать перед выходом в фотозону?",
+            "correct": "Проанализировать сколько семей зашло, какого возраста дети, сколько детей в семье, а так же свой эмоциональный настрой, личную мотивацию и соответсвие внешнего вида регламенту компании"
+        },
+        2: {
+            "text": "2. Вступление в контакт\nЧто подразумевает под собой правильно установленный контакт?",
+            "correct": "Хорошее первое впечатление, привлечение внимания, представления себя"
+        },
+        3: {
+            "text": "3. Фотографирование\nПочему важно поддерживать диалог с клиентом во время съемки?",
+            "correct": "Это помогает удерживать клиента в интересе и улучшает результат съемки."
+        },
+        4: {
+            "text": "4. Обработка импорта\nЧто включает в себя этап обработки импорта для фотографий?",
+            "correct": "Загрузка фотографий в Lightroom и редактирование."
+        },
+        5: {
+            "text": "5. Печать продукции\nНа что необходимо обращать внимание при печати продукции?",
+            "correct": "На качество печати и состояние готовой продукции."
+        },
+        6: {
+            "text": "6. Презентация продукции на стенде\nЧто понадобится для хорошений презентации продукции?",
+            "correct": "Знание продукта, правильная манера и способ донесения информации до клиента, умение выявлять скрытые потребности клиента"
+        },
+        7: {
+            "text": "7. Объявление цены\nКак правильно озвучивать цену на продукцию?",
+            "correct": "Начинать с самой высокой цены и продолжать к самой низкой, без пауз."
+        },
+        8: {
+            "text": "8. Работа с возражениями\nЧто важно помнить при работе с возражениями клиента?",
+            "correct": "Это не борьба, а прояснение сомнений клиента и предоставление аргументов для их снятия."
+        },
+        9: {
+            "text": "9. Завершение продажи\nКак можно понять готовность клиента к покупке?",
+            "correct": "Задавать вопросы о впечатлениях от фотографий и уточнять способ оплаты."
+        },
+        10: {
+            "text": "10. Увеличение чека\nКак можно увеличить общую стоимость покупки?",
+            "correct": "Предложить альтернативные продукты или использовать скидки по регламентированным пакетам акций."
+        },
+        11: {
+            "text": "11. Удержание клиента\nЧто можно сделать для удержания клиента на будущее?",
+            "correct": "Спросить о пожеланиях к ассортименту и предложить подписаться на соцсети."
+        },
+        12: {
+            "text": "12. Анализ продажи\nПочему важен анализ диалога с клиентом?",
+            "correct": "Это помогает понять, что сработало, а что нет, и улучшить подход в будущем."
+        }
+    }
+
+    # Проверяем, есть ли еще вопросы
+    if current_question > len(questions):
+        # Все вопросы пройдены, завершаем квест
+        await finish_quest22(update, state)
+        return
+
+    # Отправляем текущий вопрос
+    question_data = questions.get(current_question, {})
+    sent_message = await callback.answer(
+        question_data["text"]
+    )
+
+    await state.update_data(
+        question_message_id=sent_message.message_id,
+        current_question_data=question_data
+    )
+    await state.set_state(QuestState.waiting_for_answer_quest22)
+
+
+@router.message(QuestState.waiting_for_answer_quest22)
+async def handle_quest22_answer(message: types.Message, state: FSMContext):
+    user_answer = message.text.strip()
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
+    question_data = user_data.get("current_question_data", {})
+    user_answers = user_data.get("user_answers", {})
+
+    # Сохраняем ответ пользователя с пометкой is_correct=False (по умолчанию)
+    user_answers[current_question] = {
+        "question": question_data["text"],
+        "user_answer": user_answer,
+        "correct_answer": question_data["correct"],
+        "is_correct": False  # По умолчанию ответ неверный, модератор исправит
+    }
+
+    # Удаляем предыдущее сообщение с вопросом
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    # Переходим к следующему вопросу или завершаем тест
+    if current_question < user_data.get("total_questions", 12):
+        await state.update_data(
+            current_question=current_question + 1,
+            user_answers=user_answers
+        )
+        await ask_quest22_question(message, state)
+    else:
+        await state.update_data(user_answers=user_answers)
+        await finish_quest22(message, state)
+
+    await message.delete()
+
+
+@router.callback_query(F.data == "next_quest22_question")
+async def next_quest22_question(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1) + 1
+
+    # Удаляем сообщение с обратной связью
+    try:
+        if "feedback_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["feedback_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения: {e}")
+
+    # Переходим к следующему вопросу
+    await state.update_data(current_question=current_question)
+    await ask_quest22_question(callback.message, state)
+    await callback.answer()
+
+
+async def finish_quest22(update: Union[types.Message, types.CallbackQuery], state: FSMContext):
+    try:
+        user_data = await state.get_data()
+        user_answers = user_data.get("user_answers", {})
+
+        if isinstance(update, types.CallbackQuery):
+            user = update.from_user
+            chat_id = update.message.chat.id
+            bot = update.bot
+        else:
+            user = update.from_user
+            chat_id = update.chat.id
+            bot = update.bot
+
+        # Сохраняем ответы в глобальном хранилище (если нужно)
+        # Или сразу формируем клавиатуру модерации
+
+        # Формируем текст всех ответов
+        answers_text = "📝 Ответы пользователя:\n\n"
+        for q_num, answer_data in sorted(user_answers.items(), key=lambda x: int(x[0])):
+            answers_text += (
+                f"🔹 Вопрос {q_num}:\n{answer_data['question']}\n\n"
+                f"✏️ Ответ:\n{answer_data['user_answer']}\n\n"
+                f"✅ Правильный ответ:\n{answer_data['correct_answer']}\n"
+                f"{'-' * 30}\n\n"
+            )
+
+        # Создаем кнопки для модерации
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+
+        # Добавляем кнопки для каждого вопроса
+        buttons_row = []
+        for q_num in sorted(user_answers.keys(), key=int):
+            buttons_row.append(
+                InlineKeyboardButton(
+                    text=f"Вопрос {q_num}",
+                    callback_data=f"select_22_{user.id}_{q_num}"
+                )
+            )
+            # Разбиваем на ряды по 3 кнопки
+            if len(buttons_row) == 3:
+                keyboard.inline_keyboard.append(buttons_row)
+                buttons_row = []
+
+        # Добавляем оставшиеся кнопки
+        if buttons_row:
+            keyboard.inline_keyboard.append(buttons_row)
+
+        # Кнопка подтверждения
+        keyboard.inline_keyboard.append([
+            InlineKeyboardButton(
+                text="✅ Завершить выбор",
+                callback_data=f"finish_select_22_{user.id}"
+            )
+        ])
+
+        # Отправляем модератору
+        try:
+            # Сначала отправляем текст ответов
+            if len(answers_text) > 4000:
+                parts = [answers_text[i:i + 4000] for i in range(0, len(answers_text), 4000)]
+                for part in parts:
+                    await bot.send_message(admin_chat_id, part)
+            else:
+                await bot.send_message(admin_chat_id, answers_text)
+
+            # Затем отправляем клавиатуру
+            await bot.send_message(
+                admin_chat_id,
+                "Выберите вопросы для переделки:",
+                reply_markup=keyboard
+            )
+
+            # Уведомляем пользователя
+            await bot.send_message(
+                chat_id,
+                "✅ Ваши ответы отправлены на модерацию",
+                reply_markup=types.ReplyKeyboardRemove()
+            )
+
+        except Exception as e:
+            logging.error(f"Ошибка отправки модератору: {str(e)}")
+            await bot.send_message(
+                chat_id,
+                "⚠️ Ошибка при отправке ответов",
+                reply_markup=types.ReplyKeyboardRemove()
+            )
+
+    except Exception as e:
+        logging.error(f"Ошибка в finish_quest22: {str(e)}")
+    finally:
+        await state.clear()
 
 
 # Обработчик для всех остальных ответов
