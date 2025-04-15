@@ -58,9 +58,11 @@ class QuestState(StatesGroup):
     waiting_for_uniform = State()
     waiting_for_uniform_suggestions = State()
 
-    # Состояния для квеста 9
+    # Состояния для квеста 21
     waiting_for_colleagues_count_21 = State()
     waiting_for_colleague_position_21 = State()
     waiting_for_colleague_surname_21 = State()
     waiting_for_colleague_name_21 = State()
     waiting_for_colleague_telegram_21 = State()
+    waiting_for_retry_answer = State()
+    waiting_for_reject_comment = State()

@@ -8,6 +8,7 @@ from bot.db.models import Achievement, UserResult
 from sqlalchemy.future import select
 from .states import QuestState
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import logging
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 moderation_router = Router()
@@ -329,17 +330,24 @@ async def accept_quest22(callback: types.CallbackQuery):
             if user_result:
                 user_result.state = "выполнен"
                 user_result.result = 100  # 100% выполнено
-                await session.commit()
 
-        # Удаляем кнопки
-        await callback.message.edit_reply_markup(reply_markup=None)
+            await session.commit()
+
+        async with SessionLocal() as session:
+            await give_achievement(user_id, 22, session)
+
+        # Удаляем кнопки и редактируем сообщение
+        await callback.message.edit_text(
+            "✅ Ответы приняты",
+            reply_markup=None
+        )
 
         # Уведомляем пользователя
         await callback.bot.send_message(
             user_id,
             "✅ Ваши ответы приняты модератором! Поздравляем с успешным прохождением квеста!",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🏠 В главное меню", callback_data="main_menu")]]
+                [InlineKeyboardButton(text="🏠 В главное меню", callback_data="profile")]]
             )
         )
 
@@ -353,17 +361,15 @@ async def accept_quest22(callback: types.CallbackQuery):
 async def reject_quest22(callback: types.CallbackQuery, state: FSMContext):
     try:
         user_id = int(callback.data.split('_')[2])
-        user_data = await state.get_data()
-        user_answers = user_data.get("user_answers", {})
 
-        # Проверяем, есть ли ответы
-        if not user_answers:
-            await callback.answer("Нет ответов для модерации", show_alert=True)
-            return
+        # Получаем текст сообщения с ответами (первые 4000 символов)
+        original_text = callback.message.text
+        if len(original_text) > 4000:
+            original_text = original_text[:4000] + "..."
 
-        # Создаем кнопки для каждого вопроса
+        # Создаем клавиатуру с вопросами для выбора
         buttons = []
-        for q_num in sorted(user_answers.keys(), key=int):
+        for q_num in range(1, 13):  # 12 вопросов в квесте 22
             buttons.append(
                 InlineKeyboardButton(
                     text=f"Вопрос {q_num}",
@@ -371,12 +377,10 @@ async def reject_quest22(callback: types.CallbackQuery, state: FSMContext):
                 )
             )
 
-        # Разбиваем кнопки на ряды по 3 для лучшего отображения
-        keyboard = []
-        for i in range(0, len(buttons), 3):
-            keyboard.append(buttons[i:i + 3])
+        # Разбиваем кнопки на ряды по 3
+        keyboard = [buttons[i:i + 3] for i in range(0, len(buttons), 3)]
 
-        # Добавляем кнопку завершения
+        # Добавляем кнопку завершения выбора
         keyboard.append([
             InlineKeyboardButton(
                 text="✅ Завершить выбор",
@@ -384,20 +388,17 @@ async def reject_quest22(callback: types.CallbackQuery, state: FSMContext):
             )
         ])
 
-        # Создаем клавиатуру
-        reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-        # Отправляем сообщение с клавиатурой
+        # Редактируем сообщение, добавляя клавиатуру
         await callback.message.edit_text(
-            "Выберите вопросы, которые нужно переделать:",
-            reply_markup=reply_markup
+            f"{original_text}\n\nВыберите вопросы, которые нужно переделать:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
         )
 
         # Сохраняем данные в state
         await state.update_data(
             target_user_id=user_id,
             original_message_id=callback.message.message_id,
-            questions_to_redo=[]
+            selected_questions=[]
         )
 
         await callback.answer()
@@ -412,17 +413,26 @@ async def select_question(callback: types.CallbackQuery, state: FSMContext):
         _, _, user_id, q_num = callback.data.split('_')
         question_num = int(q_num)
 
-        # Получаем текущую клавиатуру
-        keyboard = callback.message.reply_markup.inline_keyboard
+        # Получаем текущие данные из state
+        data = await state.get_data()
+        selected_questions = data.get("selected_questions", [])
+
+        # Обновляем список выбранных вопросов
+        if question_num in selected_questions:
+            selected_questions.remove(question_num)
+            selected = False
+        else:
+            selected_questions.append(question_num)
+            selected = True
+
+        await state.update_data(selected_questions=selected_questions)
 
         # Обновляем текст кнопки
+        keyboard = callback.message.reply_markup.inline_keyboard
         for row in keyboard:
             for button in row:
                 if button.callback_data == callback.data:
-                    if "✅" in button.text:
-                        button.text = f"Вопрос {q_num}"
-                    else:
-                        button.text = f"✅ Вопрос {q_num}"
+                    button.text = f"{'✅ ' if selected else ''}Вопрос {q_num}"
 
         # Обновляем сообщение
         await callback.message.edit_reply_markup(
@@ -440,16 +450,8 @@ async def select_question(callback: types.CallbackQuery, state: FSMContext):
 async def finish_selection(callback: types.CallbackQuery, state: FSMContext):
     try:
         user_id = int(callback.data.split('_')[3])
-
-        # Анализируем выбранные вопросы
-        keyboard = callback.message.reply_markup.inline_keyboard
-        selected_questions = []
-
-        for row in keyboard:
-            for button in row:
-                if "✅" in button.text:
-                    q_num = button.callback_data.split('_')[3]
-                    selected_questions.append(int(q_num))
+        data = await state.get_data()
+        selected_questions = data.get("selected_questions", [])
 
         if not selected_questions:
             await callback.answer("Выберите хотя бы один вопрос", show_alert=True)
@@ -457,29 +459,30 @@ async def finish_selection(callback: types.CallbackQuery, state: FSMContext):
 
         # Запрашиваем комментарий
         await callback.message.edit_text(
-            "Введите комментарий для пользователя:",
+            "Введите комментарий для пользователя с указанием, что нужно исправить:",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_comment")]
             ])
         )
 
-        # Сохраняем выбранные вопросы
+        # Сохраняем данные для следующего шага
         await state.update_data(
-            selected_questions=selected_questions,
-            target_user_id=user_id
+            target_user_id=user_id,
+            questions_to_redo=selected_questions
         )
-        await state.set_state(QuestState.waiting_for_comment)
+        await state.set_state(QuestState.waiting_for_reject_comment)
 
     except Exception as e:
         logging.error(f"Ошибка завершения выбора: {str(e)}")
         await callback.answer("⚠️ Ошибка обработки", show_alert=True)
 
-@moderation_router.message(QuestState.waiting_for_comment)
+
+@moderation_router.message(QuestState.waiting_for_reject_comment)
 async def send_rejection_comment(message: types.Message, state: FSMContext):
     try:
-        user_data = await state.get_data()
-        user_id = user_data["target_user_id"]
-        questions_to_redo = user_data.get("questions_to_redo", [])
+        data = await state.get_data()
+        user_id = data["target_user_id"]
+        questions_to_redo = data.get("questions_to_redo", [])
         comment = message.text
 
         # Формируем текст с вопросами для переделки
@@ -492,11 +495,23 @@ async def send_rejection_comment(message: types.Message, state: FSMContext):
             f"Нужно исправить следующие вопросы:\n{questions_text}\n\n"
             f"Комментарий модератора:\n{comment}",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔄 Пройти заново", callback_data="retry_quest_22")]]
-            )
+                [InlineKeyboardButton(
+                    text="🔄 Пройти заново",
+                    callback_data=f"repeat_quest_22_{'_'.join(map(str, questions_to_redo))}"
+                )]
+            ])
         )
 
         await message.answer("✅ Комментарий отправлен пользователю")
+
+        # Удаляем исходное сообщение с кнопками
+        original_message_id = data.get("original_message_id")
+        if original_message_id:
+            try:
+                await message.bot.delete_message(chat_id=message.chat.id, message_id=original_message_id)
+            except:
+                pass
+
     except Exception as e:
         logging.error(f"Ошибка при отправке комментария: {e}")
         await message.answer("⚠️ Ошибка при отправке комментария")

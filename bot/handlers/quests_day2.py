@@ -3460,8 +3460,33 @@ async def finish_quest22(update: Union[types.Message, types.CallbackQuery], stat
             chat_id = update.chat.id
             bot = update.bot
 
-        # Сохраняем ответы в глобальном хранилище (если нужно)
-        # Или сразу формируем клавиатуру модерации
+            # Сохраняем в БД
+        async with SessionLocal() as session:
+            user_result = await session.execute(
+                select(UserResult).filter(
+                    UserResult.user_id == user.id,
+                    UserResult.quest_id == 22
+                )
+            )
+            user_result = user_result.scalars().first()
+
+            if not user_result:
+                user_result = UserResult(
+                    user_id=user.id,
+                    quest_id=22,
+                    state="на модерации",
+                    attempt=1,
+                    result=0
+                )
+                session.add(user_result)
+            else:
+                user_result.state = "на модерации"
+                user_result.result = 0
+
+            await session.commit()
+
+
+
 
         # Формируем текст всех ответов
         answers_text = "📝 Ответы пользователя:\n\n"
@@ -3473,33 +3498,18 @@ async def finish_quest22(update: Union[types.Message, types.CallbackQuery], stat
                 f"{'-' * 30}\n\n"
             )
 
-        # Создаем кнопки для модерации
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[])
-
-        # Добавляем кнопки для каждого вопроса
-        buttons_row = []
-        for q_num in sorted(user_answers.keys(), key=int):
-            buttons_row.append(
+        # Создаем клавиатуру модерации (принять/отклонить)
+        moderation_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
                 InlineKeyboardButton(
-                    text=f"Вопрос {q_num}",
-                    callback_data=f"select_22_{user.id}_{q_num}"
+                    text="✅ Принять ответы",
+                    callback_data=f"acc_22_{user.id}"
+                ),
+                InlineKeyboardButton(
+                    text="❌ Отклонить ответы",
+                    callback_data=f"rej_22_{user.id}"
                 )
-            )
-            # Разбиваем на ряды по 3 кнопки
-            if len(buttons_row) == 3:
-                keyboard.inline_keyboard.append(buttons_row)
-                buttons_row = []
-
-        # Добавляем оставшиеся кнопки
-        if buttons_row:
-            keyboard.inline_keyboard.append(buttons_row)
-
-        # Кнопка подтверждения
-        keyboard.inline_keyboard.append([
-            InlineKeyboardButton(
-                text="✅ Завершить выбор",
-                callback_data=f"finish_select_22_{user.id}"
-            )
+            ]
         ])
 
         # Отправляем модератору
@@ -3512,11 +3522,11 @@ async def finish_quest22(update: Union[types.Message, types.CallbackQuery], stat
             else:
                 await bot.send_message(admin_chat_id, answers_text)
 
-            # Затем отправляем клавиатуру
+            # Затем отправляем кнопки модерации
             await bot.send_message(
                 admin_chat_id,
-                "Выберите вопросы для переделки:",
-                reply_markup=keyboard
+                "Проверьте ответы пользователя:",
+                reply_markup=moderation_keyboard
             )
 
             # Уведомляем пользователя
@@ -3538,6 +3548,274 @@ async def finish_quest22(update: Union[types.Message, types.CallbackQuery], stat
         logging.error(f"Ошибка в finish_quest22: {str(e)}")
     finally:
         await state.clear()
+
+
+@router.callback_query(F.data.startswith("repeat_quest_22_"))
+async def retry_quest22(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        # Получаем список вопросов для переделки из callback_data
+        parts = callback.data.split('_')
+        questions_to_redo = list(map(int, parts[3:]))  # Номера вопросов
+
+        # Проверяем, что номера вопросов валидны
+        valid_questions = [q for q in questions_to_redo if 1 <= q <= 12]
+
+        if not valid_questions:
+            await callback.answer("Нет вопросов для переделки", show_alert=True)
+            return
+
+        # Загружаем только нужные вопросы
+        questions = {
+            1: {
+                "text": "1. Подготовка\nЧто важно сделать перед выходом в фотозону?",
+                "correct": "Проанализировать сколько семей зашло, какого возраста дети, сколько детей в семье, а так же свой эмоциональный настрой, личную мотивацию и соответсвие внешнего вида регламенту компании"
+            },
+            2: {
+                "text": "2. Вступление в контакт\nЧто подразумевает под собой правильно установленный контакт?",
+                "correct": "Хорошее первое впечатление, привлечение внимания, представления себя"
+            },
+            3: {
+                "text": "3. Фотографирование\nПочему важно поддерживать диалог с клиентом во время съемки?",
+                "correct": "Это помогает удерживать клиента в интересе и улучшает результат съемки."
+            },
+            4: {
+                "text": "4. Обработка импорта\nЧто включает в себя этап обработки импорта для фотографий?",
+                "correct": "Загрузка фотографий в Lightroom и редактирование."
+            },
+            5: {
+                "text": "5. Печать продукции\nНа что необходимо обращать внимание при печати продукции?",
+                "correct": "На качество печати и состояние готовой продукции."
+            },
+            6: {
+                "text": "6. Презентация продукции на стенде\nЧто понадобится для хорошений презентации продукции?",
+                "correct": "Знание продукта, правильная манера и способ донесения информации до клиента, умение выявлять скрытые потребности клиента"
+            },
+            7: {
+                "text": "7. Объявление цены\nКак правильно озвучивать цену на продукцию?",
+                "correct": "Начинать с самой высокой цены и продолжать к самой низкой, без пауз."
+            },
+            8: {
+                "text": "8. Работа с возражениями\nЧто важно помнить при работе с возражениями клиента?",
+                "correct": "Это не борьба, а прояснение сомнений клиента и предоставление аргументов для их снятия."
+            },
+            9: {
+                "text": "9. Завершение продажи\nКак можно понять готовность клиента к покупке?",
+                "correct": "Задавать вопросы о впечатлениях от фотографий и уточнять способ оплаты."
+            },
+            10: {
+                "text": "10. Увеличение чека\nКак можно увеличить общую стоимость покупки?",
+                "correct": "Предложить альтернативные продукты или использовать скидки по регламентированным пакетам акций."
+            },
+            11: {
+                "text": "11. Удержание клиента\nЧто можно сделать для удержания клиента на будущее?",
+                "correct": "Спросить о пожеланиях к ассортименту и предложить подписаться на соцсети."
+            },
+            12: {
+                "text": "12. Анализ продажи\nПочему важен анализ диалога с клиентом?",
+                "correct": "Это помогает понять, что сработало, а что нет, и улучшить подход в будущем."
+            }
+        }
+
+        filtered_questions = {q: questions[q] for q in valid_questions}
+
+        # Сохраняем в state только необходимые данные
+        await state.update_data(
+            current_question=0,  # Будем использовать индекс в списке
+            questions_list=valid_questions,  # Список номеров вопросов
+            questions_data=filtered_questions,  # Данные вопросов
+            user_answers={}  # Для хранения ответов
+        )
+
+        # Задаем первый вопрос
+        await ask_next_retry_question(callback.message, state)
+        await callback.answer()
+
+    except Exception as e:
+        logging.error(f"Ошибка в retry_quest22: {str(e)}")
+        await callback.answer("⚠️ Ошибка при обработке", show_alert=True)
+
+
+async def ask_next_retry_question(message: Union[types.Message, types.CallbackQuery], state: FSMContext):
+    user_data = await state.get_data()
+    current_idx = user_data.get("current_question", 0)
+    questions_list = user_data.get("questions_list", [])
+    questions_data = user_data.get("questions_data", {})
+
+    # Проверяем, есть ли еще вопросы
+    if current_idx >= len(questions_list):
+        await finish_retry_quest(message, state)
+        return
+
+    # Получаем текущий вопрос
+    q_num = questions_list[current_idx]
+    question = questions_data.get(q_num)
+
+    if not question:
+        await finish_retry_quest(message, state)
+        return
+
+    # Удаляем предыдущее сообщение с вопросом
+    if "question_message_id" in user_data:
+        try:
+            chat_id = message.message.chat.id if isinstance(message, types.CallbackQuery) else message.chat.id
+            await message.bot.delete_message(chat_id, user_data["question_message_id"])
+        except:
+            pass
+
+    # Отправляем вопрос
+    if isinstance(message, types.CallbackQuery):
+        sent_message = await message.message.answer(
+            question["text"],
+            reply_markup=types.ReplyKeyboardRemove()
+        )
+    else:
+        sent_message = await message.answer(
+            question["text"],
+            reply_markup=types.ReplyKeyboardRemove()
+        )
+
+    # Обновляем state
+    await state.update_data(
+        current_question=current_idx + 1,
+        current_q_num=q_num,
+        question_message_id=sent_message.message_id,
+        current_question_data=question
+    )
+    await state.set_state(QuestState.waiting_for_retry_answer)
+
+
+@router.message(QuestState.waiting_for_retry_answer)
+async def handle_retry_answer(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    q_num = user_data.get("current_q_num")
+    question_data = user_data.get("current_question_data", {})
+    user_answers = user_data.get("user_answers", {})
+
+    # Сохраняем ответ
+    user_answers[q_num] = {
+        "question": question_data["text"],
+        "user_answer": message.text.strip(),
+        "correct_answer": question_data["correct"],
+        "is_correct": False
+    }
+
+    # Удаляем сообщение с вопросом
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    # Обновляем state и переходим к следующему вопросу
+    await state.update_data(user_answers=user_answers)
+    await ask_next_retry_question(message, state)
+    await message.delete()
+
+
+async def finish_retry_quest(update: Union[types.Message, types.CallbackQuery], state: FSMContext):
+    try:
+        user_data = await state.get_data()
+        user_answers = user_data.get("user_answers", {})
+
+        if isinstance(update, types.CallbackQuery):
+            user = update.from_user
+            chat_id = update.message.chat.id
+            bot = update.bot
+        else:
+            user = update.from_user
+            chat_id = update.chat.id
+            bot = update.bot
+
+        # Формируем текст всех ответов
+        answers_text = "📝 Ответы пользователя:\n\n"
+        for q_num, answer_data in sorted(user_answers.items(), key=lambda x: int(x[0])):
+            answers_text += (
+                f"🔹 Вопрос {q_num}:\n{answer_data['question']}\n\n"
+                f"✏️ Ответ:\n{answer_data['user_answer']}\n\n"
+                f"✅ Правильный ответ:\n{answer_data['correct_answer']}\n"
+                f"{'-' * 30}\n\n"
+            )
+
+        # Создаем клавиатуру модерации (принять/отклонить)
+        moderation_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Принять ответы",
+                    callback_data=f"acc_22_{user.id}"
+                ),
+                InlineKeyboardButton(
+                    text="❌ Отклонить ответы",
+                    callback_data=f"rej_22_{user.id}"
+                )
+            ]
+        ])
+
+        # Отправляем модератору
+        try:
+            # Сначала отправляем текст ответов
+            if len(answers_text) > 4000:
+                parts = [answers_text[i:i + 4000] for i in range(0, len(answers_text), 4000)]
+                for part in parts:
+                    await bot.send_message(admin_chat_id, part)
+            else:
+                await bot.send_message(admin_chat_id, answers_text)
+
+            # Затем отправляем кнопки модерации
+            await bot.send_message(
+                admin_chat_id,
+                "Проверьте ответы пользователя:",
+                reply_markup=moderation_keyboard
+            )
+
+            # Уведомляем пользователя
+            await bot.send_message(
+                chat_id,
+                "✅ Ваши ответы отправлены на модерацию",
+                reply_markup=types.ReplyKeyboardRemove()
+            )
+
+        except Exception as e:
+            logging.error(f"Ошибка отправки модератору: {str(e)}")
+            await bot.send_message(
+                chat_id,
+                "⚠️ Ошибка при отправке ответов",
+                reply_markup=types.ReplyKeyboardRemove()
+            )
+
+    except Exception as e:
+        logging.error(f"Ошибка в finish_retry_quest: {str(e)}")
+    finally:
+        await state.clear()
+
+
+def create_moderation_keyboard(user_id: int, question_numbers: list[int]) -> InlineKeyboardMarkup:
+    """Создает клавиатуру для модерации"""
+    keyboard = []
+
+    # Добавляем кнопки для вопросов (по 3 в ряд)
+    row = []
+    for q_num in sorted(question_numbers):
+        row.append(InlineKeyboardButton(
+            text=f"Вопрос {q_num}",
+            callback_data=f"select_22_{user_id}_{q_num}"
+        ))
+        if len(row) == 3:
+            keyboard.append(row)
+            row = []
+
+    if row:
+        keyboard.append(row)
+
+    # Кнопка завершения
+    keyboard.append([
+        InlineKeyboardButton(
+            text="✅ Завершить проверку",
+            callback_data=f"finish_select_22_{user_id}"
+        )
+    ])
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 
 
 # Обработчик для всех остальных ответов
