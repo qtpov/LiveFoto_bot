@@ -468,3 +468,11 @@ def quest21_cancel_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_quest21")]
     ])
+
+
+def quest26_skip_keyboard():
+    buttons = [
+        [InlineKeyboardButton(text="Пропустить вопрос", callback_data="skip_quest26_question")]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard

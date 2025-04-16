@@ -66,3 +66,18 @@ class QuestState(StatesGroup):
     waiting_for_colleague_telegram_21 = State()
     waiting_for_retry_answer = State()
     waiting_for_reject_comment = State()
+
+    waiting_for_sale_result_24 = State()
+    waiting_for_fail_reason_24 = State()
+    waiting_for_continue_24 = State()
+    waiting_for_custom_reason_24 = State()
+
+    # Состояния для квеста 26
+    waiting_for_answer_26_1 = State()
+    waiting_for_answer_26_2 = State()
+    waiting_for_answer_26_3 = State()
+    waiting_for_answer_26_4 = State()
+    waiting_for_answer_26_5 = State()
+    waiting_for_answer_26_6 = State()
+    waiting_for_answer_26_7 = State()
+    waiting_for_answer_26_8 = State()

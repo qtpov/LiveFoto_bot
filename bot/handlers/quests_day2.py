@@ -8,9 +8,11 @@ from sqlalchemy.future import select
 from bot.db.session import SessionLocal
 from aiogram.utils.media_group import MediaGroupBuilder, InputMediaPhoto
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.filters import StateFilter
 from pathlib import Path
 from .moderation import give_achievement, get_quest_finish_keyboard
 from bot.db.crud import update_user_level, update_user_day
+from aiogram.exceptions import TelegramBadRequest
 import datetime
 import json
 import logging
@@ -3815,6 +3817,1029 @@ def create_moderation_keyboard(user_id: int, question_numbers: list[int]) -> Inl
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+# Квест 23 - Подошел, сфоткал, победил
+async def quest_23(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Диалоговые ситуации
+    scenarios = {
+        1: {
+            "text": "1. Мама сама подходит на стенд и смотрит на стенд. Что вы сделаете?",
+            "options": [
+                "Не буду мешать",
+                "Подойду и буду участливо смотреть",
+                "Поздороваюсь и спрошу, нашли ли себя",
+                "Расскажу анекдот про врачей и театр"
+            ],
+            "correct": 2,
+            "feedback": "Правильно - поздороваться и проявить интерес. Это начало диалога."
+        },
+        2: {
+            "text": "2. Вы подходите к ребёнку с фотоаппаратом, ребёнок начинает убегать. Ваши действия?",
+            "options": [
+                "Пойду назад, скажу, что никто не хочет фоткаться",
+                "Пойду искать другого ребёнка",
+                "Обращусь к родителям",
+                "Предложу ребёнку поиграть в прятки и в процессе сделаю фотографии"
+            ],
+            "correct": 3,
+            "feedback": "Лучше всего вовлечь родителей - они помогут уговорить ребенка."
+        },
+        3: {
+            "text": "3. Подходит злая женщина и начинает возмущаться, что её ребёнка сфотографировали без разрешения. Ваши действия?",
+            "options": [
+                "Сбегу",
+                "Начну кричать на неё в ответ",
+                "Кричать не буду, но буду настойчиво доказывать ей, что она не права",
+                "Обращусь к более опытному сотруднику или управляющему"
+            ],
+            "correct": 3,
+            "feedback": "В конфликтных ситуациях лучше привлечь руководителя."
+        },
+        4: {
+            "text": "4. Мама ребёнка говорит, что ей нравится фотография, но она хотела бы в рамочке, а не в магните. Ваши действия?",
+            "options": [
+                "Скажу, что рамки кончились",
+                "Скажу, что печатать долго",
+                "Закачу глаза и молча пойду печатать фотографию",
+                "С улыбкой скажу, что сейчас сделаю",
+                "у меня уже готово фото в рамочке"
+            ],
+            "correct": 4,
+            "feedback": "Всегда соглашайтесь с пожеланиями клиента с улыбкой."
+        },
+        5: {
+            "text": "5. Папа набрал продукции на 4700. Вы хотите чек побольше. Ваши действия?",
+            "options": [
+                "Как хотел, так и перехочу, 4700 тоже неплохо",
+                "Предложу ему ещё рамку с большой скидкой, точно не откажется",
+                "Предложу ему электронные кадры в подарок на покупку от 5000",
+                "Стану умолять и валяться в ногах, чтобы просто так докинул 300"
+            ],
+            "correct": 2,
+            "feedback": "Лучший вариант - предложить бонус при достижении определенной суммы."
+        }
+    }
+
+    # Отправляем инструкцию
+    message = await callback.message.answer(
+        "💬 Квест 23: Подошел, сфоткал, победил\n\n"
+        "Вам нужно выбрать наиболее подходящие ответы в диалогах с клиентами.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Начать диалог", callback_data="start_quest23")]
+        ])
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        scenarios=scenarios,
+        current_scenario=1,
+        correct_answers=0,
+        total_questions=5
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "start_quest23")
+async def start_quest23(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Начинаем первый сценарий
+    await show_quest23_scenario(callback, state)
+    await callback.answer()
+
+
+async def show_quest23_scenario(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_scenario = user_data.get("current_scenario", 1)
+    scenarios = user_data.get("scenarios", {})
+
+    if current_scenario not in scenarios:
+        await finish_quest23(callback, state)
+        return
+
+    scenario = scenarios[current_scenario]
+
+    # Создаем клавиатуру с вариантами ответов
+    keyboard = []
+    for i, option in enumerate(scenario["options"], 1):
+        keyboard.append([InlineKeyboardButton(text=option, callback_data=f"qw23_{i - 1}")])
+
+    message = await callback.message.answer(
+        scenario["text"],
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_scenario_data=scenario
+    )
+
+
+@router.callback_query(F.data.startswith("qw23_"))
+async def handle_quest23_answer(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_scenario = user_data.get("current_scenario", 1)
+    correct_answers = user_data.get("correct_answers", 0)
+    scenario = user_data.get("current_scenario_data", {})
+    total_questions = user_data.get("total_questions", 5)
+
+    selected_answer = int(callback.data.split("_")[1])
+    is_correct = selected_answer == scenario["correct"]
+
+    # Удаляем предыдущее сообщение
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения: {e}")
+
+    # Отправляем обратную связь
+    feedback_text = scenario["feedback"] if is_correct else "Неверный ответ. Попробуйте еще раз."
+    message = await callback.message.answer(
+        f"{'✅ Верно!' if is_correct else '❌ Неверно'}\n\n{feedback_text}",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Далее →", callback_data="next_quest23_scenario")]
+        ])
+    )
+
+    # Обновляем счетчик правильных ответов
+    if is_correct:
+        correct_answers += 1
+        await state.update_data(correct_answers=correct_answers)
+
+    await state.update_data(
+        feedback_message_id=message.message_id,
+        current_scenario=current_scenario + 1 if is_correct else current_scenario
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "next_quest23_scenario")
+async def next_quest23_scenario(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем сообщение с обратной связью
+    user_data = await state.get_data()
+    try:
+        if "feedback_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["feedback_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения: {e}")
+
+    # Переходим к следующему сценарию
+    await show_quest23_scenario(callback, state)
+    await callback.answer()
+
+
+async def finish_quest23(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    correct_answers = user_data.get("correct_answers", 0)
+    total_questions = user_data.get("total_questions", 5)
+
+    # Сохраняем в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 23
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=23,
+                state="выполнен",
+                attempt=1,
+                result=correct_answers
+            )
+            session.add(user_result)
+        else:
+            user_result.state = "выполнен"
+            user_result.result = correct_answers
+
+        if correct_answers == total_questions:
+            achievement_given = await give_achievement(callback.from_user.id, 23, session)
+            if achievement_given:
+                message_text = (
+                    f"✅ Квест 23 завершен!\n"
+                    f"Правильных ответов: {correct_answers} из {total_questions}\n"
+                    f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!"
+                )
+            else:
+                message_text = f"✅ Квест 23 завершен!\nПравильных ответов: {correct_answers} из {total_questions}"
+        else:
+            message_text = f"Есть ошибки, попробуй заново\nВерных ответов: {correct_answers} из {total_questions}"
+
+        await session.commit()
+
+    # Отправляем результат пользователю
+    message = await callback.message.answer(
+        message_text,
+        reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 23)
+    )
+
+    await state.update_data(question_message_id=message.message_id)
+    await state.clear()
+
+
+# Квест 24 - 5 продаж
+async def quest_24(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Отправляем инструкцию
+    message = await callback.message.answer(
+        "💰 Квест 24: 5 продаж\n\n"
+        "Сделай 5 продаж и проанализируй каждую. Если был отказ - выбери причину.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Начать", callback_data="start_quest24")]
+        ])
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        current_sale=1,
+        sales_data=[],
+        total_sales=5
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "start_quest24")
+async def start_quest24(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Начинаем первую продажу
+    await ask_sale_result_24(callback, state)
+    await callback.answer()
+
+
+async def ask_sale_result_24(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_sale = user_data.get("current_sale", 1)
+    total_sales = user_data.get("total_sales", 5)
+
+    message = await callback.message.answer(
+        f"💰 Продажа {current_sale} из {total_sales}\n"
+        "Как прошла продажа?",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Успешная", callback_data="sale_success_24")],
+            [InlineKeyboardButton(text="❌ Отказ", callback_data="sale_fail_24")]
+        ])
+    )
+
+    await state.update_data(question_message_id=message.message_id)
+    await state.set_state(QuestState.waiting_for_sale_result_24)
+
+
+@router.callback_query(F.data == "sale_success_24", QuestState.waiting_for_sale_result_24)
+async def handle_sale_success_24(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    sales_data = user_data.get("sales_data", [])
+    current_sale = user_data.get("current_sale", 1)
+    total_sales = user_data.get("total_sales", 5)
+
+    # Добавляем успешную продажу
+    sales_data.append({
+        "number": current_sale,
+        "success": True,
+        "reason": None,
+        "comment": None
+    })
+
+    await callback.message.delete()
+
+    # Переходим к следующей продаже или завершаем
+    if current_sale < total_sales:
+        await state.update_data(
+            sales_data=sales_data,
+            current_sale=current_sale + 1
+        )
+        await ask_sale_result_24(callback, state)
+    else:
+        await finish_quest24(callback, state)
+
+    await callback.answer()
+
+
+@router.callback_query(F.data == "sale_fail_24", QuestState.waiting_for_sale_result_24)
+async def handle_sale_fail_24(callback: types.CallbackQuery, state: FSMContext):
+    # Используем коды вместо полного текста для callback_data
+    reasons = {
+        "expensive": "Дорого",
+        "thinking": "Я подумаю",
+        "already_have": "У нас уже куча вашей продукции!",  # Должно совпадать с reason_map
+        "other": "Иной отказ"
+    }
+
+    keyboard = []
+    for code, text in reasons.items():
+        keyboard.append([
+            InlineKeyboardButton(
+                text=text,
+                callback_data=f"fail_reason_{code}"  # Безопасный callback_data
+            )
+        ])
+
+    try:
+        # Пробуем отредактировать сообщение
+        await callback.message.edit_text(
+            "Выберите причину отказа:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+        )
+    except TelegramBadRequest:
+        # Если не получилось редактировать - удаляем и отправляем новое
+        try:
+            await callback.message.delete()
+        except:
+            pass
+        await callback.message.answer(
+            "Выберите причину отказа:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+        )
+
+    await state.set_state(QuestState.waiting_for_fail_reason_24)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("fail_reason_"), QuestState.waiting_for_fail_reason_24)
+async def handle_fail_reason_24(callback: types.CallbackQuery, state: FSMContext):
+    # Исправленный словарь соответствий
+    reason_map = {
+        "expensive": "Дорого",
+        "thinking": "Я подумаю",
+        "already": "У нас уже куча вашей продукции!",
+        "other": "Иной отказ"
+    }
+
+    reason_code = callback.data.split("_")[2]
+    reason_text = reason_map.get(reason_code, "Иной отказ")  # Если код не найден, будет "Иной отказ"
+
+    # Остальной код без изменений
+    user_data = await state.get_data()
+    current_sale = user_data.get("current_sale", 1)
+
+    if reason_code == "other":
+        await callback.message.edit_text(
+            "Пожалуйста, опишите причину отказа клиента:",
+            reply_markup=None
+        )
+        await state.set_state(QuestState.waiting_for_custom_reason_24)
+        await state.update_data(current_fail_reason=reason_text)
+        await callback.answer()
+        return
+
+    sales_data = user_data.get("sales_data", [])
+    sales_data.append({
+        "number": current_sale,
+        "success": False,
+        "reason": reason_text,
+        "comment": None
+    })
+
+    await state.update_data(sales_data=sales_data)
+    await show_theory_for_reason(callback, state, reason_text)
+    await callback.answer()
+
+
+# Новый обработчик для ввода причины отказа
+@router.message(QuestState.waiting_for_custom_reason_24)
+async def handle_custom_reason_24(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    sales_data = user_data.get("sales_data", [])
+    current_sale = user_data.get("current_sale", 1)
+
+    # Сохраняем с пользовательской причиной
+    sales_data.append({
+        "number": current_sale,
+        "success": False,
+        "reason": "Иной отказ",
+        "comment": message.text  # Сохраняем текст пользователя
+    })
+
+    await state.update_data(sales_data=sales_data)
+
+    # Отправляем модератору новый отказ
+    await message.bot.send_message(
+        admin_chat_id,
+        f"🚨 Новый тип отказа от пользователя @{message.from_user.username}:\n\n"
+        f"{message.text}\n\n"
+        f"Продажа №{current_sale} из 5"
+    )
+
+    # Показываем сообщение пользователю
+    await message.answer(
+        "Спасибо! Ваш отказ отправлен на анализ. Мы учтем его в будущем.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Продолжить", callback_data="continue_quest24")]
+        ])
+    )
+
+    await state.set_state(QuestState.waiting_for_continue_24)
+
+async def show_theory_for_reason(callback: types.CallbackQuery, state: FSMContext, reason_text: str):
+    theories = {
+        "Дорого": [
+            "Фотограф: Скажите пожалуйста, почему вы считаете, что это дорого?\n",
+            "Клиент: Я знаю где можно купить магниты намного дешевле \n→ Фотограф: Да, вы можете найти дешевле, но вы таким образом потеряете яркое воспоминание. Вам придется все делать самим, тратить на это время, а мы Вам предоставляем всю услугу сразу.\n\n",
+            "Клиент: Эти магниты не стоят столько, я могу распечатать гораздо дешевле \n→ Фотограф: В стоимость магнита входит не только сама бумага и корпус, но и краска, техника, работа фотографа и дизайнера, оплата аренды, ведь мы работаем для вас и создания ваших воспоминаний!\n\n",
+            "Клиент: А вот в аквапарке(или другая локация конкурентов) было дешевле \n→ Фотограф: Это другая компания, и условия у них там другие, у нас работают действительно профессионалы своего дела, посмотрите какой замечательный кадр и какие эмоции!"
+        ],
+        "Я подумаю": [
+            "Фотограф: Скажите пожалуйста, почему вам сложно принять решение?\n",
+            "Клиент: Я должен(на) посоветоваться с мужем/женой \n→ Фотограф: Вы и ваши детки отлично получились на фотографиях, я уверена вашей жене тоже очень понравятся. Какие кадры вы хотите взять?\n\n",
+            "Клиент: Смотрите как интересно и красиво ваши детки получились (акцент на комплиментах), мужья обычно не понимают в фотографиях ничего, а вы как считаете, какие самые красивые кадры получились? \n→ Фотограф: У нас есть так же и другая продукция, вот смотрите кружечки, брелочки, к тому же у вас такие красивые кадры, еще одни памятные воспоминания у вас будут храниться дома\n\n",
+            "Клиент: Мне не нравится, как получился мой ребенок на фото/ как я получилась \n→ Фотограф: Вы/ваш ребёнок отлично вышли на фото! Но мы можем сделать еще фотографии, это займет немного времени и вы убедитесь, что выглядите шикарно!\n\n",
+            "Клиент: Сомневаюсь из-за цены(дорого) \n→ Фотограф: Разбор отказа 'дорого'"
+        ],
+        "У нас уже куча вашей продукции!": [
+            "Фотограф: Скажите пожалуйста, а какая именно у вас есть наша продукция?\n",
+            "Клиент: У нас есть и магниты и рамки, полно всего! \n→ Фотограф: У нас недавно появилась новая продукция, посмотрите как клево будет смотреться ваша фотография, вы также это можете подарить кому-нибудь из родственников на праздники, либо приобрести электронный кадр\n\n",
+            "Клиент: Нам ничего не нужно все равно!\n → Фотограф: Такие кадры замечательные, такой момент пойман! Может вашей бабушке/дедушке будет приятно получить такой подарок!"
+        ],
+        "Иной отказ": [
+            "Фотограф: Впиши отказ, а так же подумай, как можно было бы обработать данный отказ\n"
+        ]
+    }
+
+    theory_text = "\n".join(theories.get(reason_text, ["Нет информации по этому отказу"]))
+
+    try:
+        await callback.message.edit_text(
+            f"📌 Теория по обработке отказа '{reason_text}':\n\n{theory_text}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Продолжить", callback_data="continue_quest24")]
+            ])
+        )
+    except:
+        await callback.message.delete()
+        await callback.message.answer(
+            f"📌 Теория по обработке отказа '{reason_text}':\n\n{theory_text}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Продолжить", callback_data="continue_quest24")]
+            ])
+        )
+
+    await state.set_state(QuestState.waiting_for_continue_24)
+
+@router.callback_query(F.data == "continue_quest24", QuestState.waiting_for_continue_24)
+async def continue_quest24(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_sale = user_data.get("current_sale", 1)
+    total_sales = user_data.get("total_sales", 5)
+
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    if current_sale < total_sales:
+        await state.update_data(current_sale=current_sale + 1)
+        await ask_sale_result_24(callback, state)
+    else:
+        await finish_quest24(callback, state)
+
+    await callback.answer()
+
+
+async def finish_quest24(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    sales_data = user_data.get("sales_data", [])
+
+    # Сохраняем в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 24
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        success_count = sum(1 for sale in sales_data if sale["success"])
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=24,
+                state="не выполнен",
+                attempt=1,
+                result=success_count
+            )
+            session.add(user_result)
+        else:
+            user_result.result = success_count
+
+        if success_count == user_data.get("total_sales", 5):
+            user_result.state = "выполнен"
+            achievement_given = await give_achievement(callback.from_user.id, 24, session)
+            if achievement_given:
+                message_text = (
+                    f"✅ Квест 24 завершен!\n"
+                    f"Успешных продаж: {success_count} из 5\n"
+                    f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!"
+                )
+            else:
+                message_text = f"✅ Квест 24 завершен!\nУспешных продаж: {success_count} из 5"
+        else:
+            message_text = f"Квест 24 окончен.\nУспешных продаж: {success_count} из 5"
+
+        await session.commit()
+
+
+    # Отправляем результат пользователю
+    message = await callback.message.answer(
+        message_text,
+        reply_markup=get_quest_finish_keyboard(success_count, 5, 24)
+    )
+
+    await state.update_data(question_message_id=message.message_id)
+    await state.clear()
+
+
+# Квест 25 - Сила отказов
+async def quest_25(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Теория
+    theory_text = (
+        "💪 Квест 25: Сила отказов\n\n"
+        "Отказы - это возможность понять потребности клиента:\n\n"
+        "1. Понимание потребностей: Отказ помогает выявить реальные потребности клиента.\n"
+        "2. Работа с возражениями: Правильная реакция может увеличить шансы на успешную продажу.\n"
+        "3. Улучшение предложения: Анализ причин отказов дает возможность адаптировать продукты.\n"
+        "4. Уверенность и терпение: Каждый отказ – это шаг к улучшению навыков.\n\n"
+        "Отказы в продажах – это не конец, а возможность для роста!"
+    )
+
+    # Диалоговые ситуации
+    scenarios = {
+        1: {
+            "text": "Ситуация 1:\nКлиент: 'Я не уверена, что хочу что-то покупать сейчас.'",
+            "options": [
+                "Понимаю вас, давайте просто покажу, как получились снимки",
+                "Конечно, покупать — это не обязательно, но глянуть точно стоит!",
+                "Всё хорошо, давайте без обязательств просто оценим результат"
+            ],
+            "correct": [0, 1, 2],
+            "feedback": "Все варианты правильные! Главное - продолжить диалог."
+        },
+        2: {
+            "text": "Ситуация 2:\nКлиент: 'Ой, магниты нам не надо.'",
+            "options": [
+                "Хорошо, у нас есть и другие форматы — например, стильные рамки",
+                "Понимаю! Магниты не всем подходят. А вот рамка — это уже как элемент декора",
+                "Тогда давайте предложу альтернативу — есть очень классные рамки"
+            ],
+            "correct": [0, 1, 2],
+            "feedback": "Все варианты хороши - предлагаем альтернативу."
+        },
+        3: {
+            "text": "Ситуация 3:\nКлиент: 'Рамки, наверно, дороже? Тогда не надо.'",
+            "options": [
+                "Есть разные по цене — подберу вам вариант, который подойдёт",
+                "Не обязательно! У нас есть бюджетные рамки, которые выглядят шикарно",
+                "Стоимость зависит от размера, но я покажу самые популярные"
+            ],
+            "correct": [0, 1, 2],
+            "feedback": "Все варианты правильные - объясняем ценовую политику."
+        }
+    }
+
+    # Отправляем теорию
+    message = await callback.message.answer(
+        theory_text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Начать практику", callback_data="start_quest25_practice")]
+        ])
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        scenarios=scenarios,
+        current_scenario=1,
+        correct_answers=0,
+        total_questions=3
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "start_quest25_practice")
+async def start_quest25_practice(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Начинаем первый сценарий
+    await show_quest25_scenario(callback, state)
+    await callback.answer()
+
+
+async def show_quest25_scenario(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        user_data = await state.get_data()
+        current_scenario = user_data.get("current_scenario", 1)
+        scenarios = user_data.get("scenarios", {})
+
+        if current_scenario not in scenarios:
+            await finish_quest25(callback, state)
+            return
+
+        scenario = scenarios[current_scenario]
+
+        # Сохраняем текущий сценарий в state перед показом
+        await state.update_data(current_scenario_data=scenario)
+
+        keyboard = []
+        for i, option in enumerate(scenario["options"]):
+            callback_data = f"qw25_{i}"[:64]
+            keyboard.append([InlineKeyboardButton(text=option, callback_data=callback_data)])
+
+        try:
+            if "question_message_id" in user_data:
+                await callback.message.edit_text(
+                    scenario["text"],
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+                )
+            else:
+                message = await callback.message.answer(
+                    scenario["text"],
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+                )
+                await state.update_data(question_message_id=message.message_id)
+        except TelegramBadRequest:
+            message = await callback.message.answer(
+                scenario["text"],
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+            )
+            await state.update_data(question_message_id=message.message_id)
+
+    except Exception as e:
+        print(f"Error in show_quest25_scenario: {e}")
+        await callback.answer("Произошла ошибка", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("qw25_"))
+async def handle_quest25_answer(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        user_data = await state.get_data()
+        scenario = user_data.get("current_scenario_data")
+
+        if not scenario:
+            await callback.answer("Попробуйте ответить еще раз", show_alert=True)
+            await show_quest25_scenario(callback, state)
+            return
+
+        try:
+            selected_answer = int(callback.data.split("_")[1])
+        except (IndexError, ValueError):
+            await callback.answer("Неверный формат ответа", show_alert=True)
+            return
+
+        is_correct = selected_answer in scenario["correct"]
+        correct_answers = user_data.get("correct_answers", 0)
+        current_scenario = user_data.get("current_scenario", 1)
+
+        try:
+            await callback.message.edit_text(
+                f"{'✅ Верно!' if is_correct else '❌ Неверно'}\n\n{scenario['feedback']}",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="Далее →", callback_data="next_quest25_scenario")]
+                ])
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                f"{'✅ Верно!' if is_correct else '❌ Неверно'}\n\n{scenario['feedback']}",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="Далее →", callback_data="next_quest25_scenario")]
+                ])
+            )
+
+        # Обновляем данные только после успешного показа результата
+        new_data = {
+            "current_scenario": current_scenario + (1 if is_correct else 0),
+            "correct_answers": correct_answers + (1 if is_correct else 0)
+        }
+        await state.update_data(**new_data)
+
+        await callback.answer()
+    except Exception as e:
+        print(f"Error in handle_quest25_answer: {e}")
+        await callback.answer("Произошла ошибка, попробуйте еще раз", show_alert=True)
+
+@router.callback_query(F.data == "next_quest25_scenario")
+async def next_quest25_scenario(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        user_data = await state.get_data()
+        if "current_scenario" not in user_data:
+            await callback.answer("Квест уже завершен", show_alert=True)
+            return
+
+        # Остальной код обработки...
+    except Exception as e:
+        print(f"Error in next_quest25_scenario: {e}")
+        await callback.answer("Произошла ошибка", show_alert=True)
+    # Переходим к следующему сценарию
+    await show_quest25_scenario(callback, state)
+    await callback.answer()
+
+
+async def finish_quest25(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    correct_answers = user_data.get("correct_answers", 0)
+    total_questions = user_data.get("total_questions", 3)
+
+    await callback.message.delete()
+
+    # Сохраняем в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 25
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=25,
+                state="выполнен",
+                attempt=1,
+                result=correct_answers
+            )
+            session.add(user_result)
+        else:
+            user_result.state = "выполнен"
+            user_result.result = correct_answers
+
+        if correct_answers == total_questions:
+            achievement_given = await give_achievement(callback.from_user.id, 25, session)
+            if achievement_given:
+                message_text = (
+                    f"✅ Квест 25 завершен!\n"
+                    f"Правильных ответов: {correct_answers} из {total_questions}\n"
+                    f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!"
+                )
+            else:
+                message_text = f"✅ Квест 25 завершен!\nПравильных ответов: {correct_answers} из {total_questions}"
+        else:
+            message_text = f"Есть ошибки, попробуй заново\nВерных ответов: {correct_answers} из {total_questions}"
+
+        await session.commit()
+
+    # Отправляем результат пользователю
+    message = await callback.message.answer(
+        message_text,
+        reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 25)
+    )
+
+    await state.update_data(question_message_id=message.message_id)
+    await state.clear()
+
+
+# Квест 26 - Фидбек по второму дню
+async def quest_26(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        await callback.message.delete()
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    questions = [
+        {
+            "text": "1. Есть ли что-то что тебе не до конца понятно из материала по органам управления фототехники? Что?",
+            "state": "waiting_for_answer_26_1"
+        },
+        {
+            "text": "2. Позинг - важная и сложная вещь. Были ли у тебя трудности во время выполнения задачи? Какие?",
+            "state": "waiting_for_answer_26_2"
+        },
+        {
+            "text": "3. Расскажи нам о том, как далась коммуникация с нашими гостями? Что понравилось/ не понравилось?",
+            "state": "waiting_for_answer_26_3"
+        },
+        {
+            "text": "4. Семейный кадр - залог успеха. Удалось ли тебе выполнить задачу на максимум или были заминки? Какие?",
+            "state": "waiting_for_answer_26_4"
+        },
+        {
+            "text": "5. Есть ли у тебя вопросы по алгоритму печати продукции? Какие?",
+            "state": "waiting_for_answer_26_5"
+        },
+        {
+            "text": "6. Как прошла твоя практика, смог соблюдать тайминг и конверсию? Что для тебя было самым интересным и неинтересным?",
+            "state": "waiting_for_answer_26_6"
+        },
+        {
+            "text": "7. Продажи - наша неотъемлемая часть. Где тебе было сложно? Почему?",
+            "state": "waiting_for_answer_26_7"
+        },
+        {
+            "text": "8. Все отзывы - твой двигатель прогресса. Расскажи нам о своих?",
+            "state": "waiting_for_answer_26_8"
+        }
+    ]
+
+    # Отправляем первый вопрос
+    message = await callback.message.answer(
+        questions[0]["text"],
+        reply_markup=quest26_skip_keyboard()
+    )
+
+    await state.update_data(
+        question_message_id=message.message_id,
+        questions=questions,
+        current_question=0,
+        answers={}
+    )
+    await state.set_state(QuestState.waiting_for_answer_26_1)
+    await callback.answer()
+
+
+@router.message(
+    F.text,
+    StateFilter(
+        QuestState.waiting_for_answer_26_1,
+        QuestState.waiting_for_answer_26_2,
+        QuestState.waiting_for_answer_26_3,
+        QuestState.waiting_for_answer_26_4,
+        QuestState.waiting_for_answer_26_5,
+        QuestState.waiting_for_answer_26_6,
+        QuestState.waiting_for_answer_26_7,
+        QuestState.waiting_for_answer_26_8
+    )
+)
+async def handle_quest26_answer(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 0)
+    questions = user_data.get("questions", [])
+    answers = user_data.get("answers", {})
+
+    # Сохраняем ответ
+    answers[current_question] = message.text
+
+    # Удаляем предыдущее сообщение
+    if "question_message_id" in user_data:
+        try:
+            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+        except:
+            pass
+
+    # Переходим к следующему вопросу
+    current_question += 1
+    if current_question < len(questions):
+        next_question = questions[current_question]
+        next_message = await message.answer(
+            next_question["text"],
+            reply_markup=quest26_skip_keyboard()
+        )
+
+        await state.update_data(
+            question_message_id=next_message.message_id,
+            current_question=current_question,
+            answers=answers
+        )
+        await state.set_state(getattr(QuestState, next_question["state"]))
+    else:
+        await state.update_data(answers=answers)
+        await finish_quest26(message, state)
+
+    await message.delete()
+
+
+@router.callback_query(F.data == "skip_quest26_question")
+async def skip_quest26_question(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 0)
+    questions = user_data.get("questions", [])
+    answers = user_data.get("answers", {})
+
+    # Помечаем вопрос как пропущенный
+    answers[current_question] = "Пропущено"
+
+    # Удаляем предыдущее сообщение
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    # Переходим к следующему вопросу
+    current_question += 1
+    if current_question < len(questions):
+        next_question = questions[current_question]
+        next_message = await callback.message.answer(
+            next_question["text"],
+            reply_markup=quest26_skip_keyboard()
+        )
+
+        await state.update_data(
+            question_message_id=next_message.message_id,
+            current_question=current_question,
+            answers=answers
+        )
+        await state.set_state(getattr(QuestState, next_question["state"]))
+    else:
+        await state.update_data(answers=answers)
+        await finish_quest26(callback.message, state)
+
+    await callback.answer()
+
+
+async def finish_quest26(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    answers = user_data.get("answers", {})
+    questions = user_data.get("questions", [])
+
+    # Формируем отчет для администратора
+    report_text = "📋 Фидбек по второму дню:\n\n"
+    report_text += f"👤 Сотрудник: {message.from_user.full_name} (@{message.from_user.username or 'нет'})\n"
+    report_text += f"📅 Дата: {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+
+    for i, answer in answers.items():
+        question_text = questions[i]["text"].split("\n")[-1]  # Берем только текст вопроса без номера
+        report_text += f"{i + 1}. {question_text}\nОтвет: {answer}\n\n"
+
+    # Отправляем модератору
+    await message.bot.send_message(
+        admin_chat_id,
+        report_text
+    )
+
+    # Сохраняем в БД
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == message.from_user.id,
+                UserResult.quest_id == 26
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            user_result = UserResult(
+                user_id=message.from_user.id,
+                quest_id=26,
+                state="выполнен",
+                attempt=1,
+                result=100
+            )
+            session.add(user_result)
+        else:
+            user_result.state = "выполнен"
+
+        await update_user_level(message.from_user.id, session)
+        await update_user_day(message.from_user.id, session)
+        await session.commit()
+
+    # Отправляем пользователю
+    await message.answer(
+        "\nСпасибо тебе за обратную связь. Благодаря тебе мы становимся лучше!\nХорошенько отдохни и встретимся завтра! Пока!", reply_markup=get_day_finish_keyboard(26)
+
+    )
+    await state.clear()
 
 
 
