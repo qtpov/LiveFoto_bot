@@ -81,3 +81,28 @@ class QuestState(StatesGroup):
     waiting_for_answer_26_6 = State()
     waiting_for_answer_26_7 = State()
     waiting_for_answer_26_8 = State()
+
+    waiting_photo_answer = State()
+
+    waiting_assembly_start = State()
+
+    waiting_photo_hunt_start = State()
+
+    waiting_full_cycle_step = State()
+
+    waiting_quiz_start = State()
+
+    waiting_quiz_answer = State()
+
+    waiting_game_start = State()
+
+    waiting_game_answer = State()
+
+    waiting_client_start = State()
+
+    waiting_feedback_start = State()
+
+    waiting_feedback_answer = State()
+
+
+
