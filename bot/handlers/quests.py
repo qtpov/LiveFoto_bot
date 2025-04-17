@@ -18,6 +18,7 @@ from .states import QuestState
 from bot.configurate import settings
 from .quests_day2 import *
 from .quests_day3 import *
+
 router = Router()
 
 admin_chat_id = settings.ADMIN_ID

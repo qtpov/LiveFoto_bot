@@ -82,27 +82,39 @@ class QuestState(StatesGroup):
     waiting_for_answer_26_7 = State()
     waiting_for_answer_26_8 = State()
 
-    waiting_photo_answer = State()
+    # Квест 27 - Правильное фото
+    waiting_photo_answer = State()  # Ожидание ответа на вопрос с фото
 
-    waiting_assembly_start = State()
+    # Квест 28 - Собери все
+    waiting_assembly_start = State()  # Ожидание старта сборки
+    waiting_assembly_finish = State()  # Ожидание завершения сборки
 
-    waiting_photo_hunt_start = State()
+    # Квест 29 - Фотоохота
+    waiting_photo_hunt_start = State()  # Ожидание старта фотоохоты
+    waiting_photo_hunt_stop = State()  # Ожидание остановки фотоохоты
+    waiting_photo_submit = State()  # Ожидание отправки фото
+    waiting_photo_feedback = State()  # Ожидание фидбека по фотоохоте
 
-    waiting_full_cycle_step = State()
+    # Квест 30 - Полный цикл
+    waiting_full_cycle_step = State()  # Ожидание следующего шага
+    waiting_sales_amount = State()  # Ожидание ввода суммы продаж
 
-    waiting_quiz_start = State()
+    # Квест 31 - Ценность кадра
+    waiting_quiz_start = State()  # Ожидание старта теста
+    waiting_quiz_answer = State()  # Ожидание ответа на вопрос теста
 
-    waiting_quiz_answer = State()
+    # Квест 32 - Ценности компании
+    waiting_game_start = State()  # Ожидание старта игры
+    waiting_scenario_answer = State()  # Ожидание ответа на сценарий
 
-    waiting_game_start = State()
+    # Квест 33 - Клиент
+    waiting_client_start = State()  # Ожидание старта взаимодействия
+    waiting_client_finish = State()  # Ожидание завершения
 
-    waiting_game_answer = State()
-
-    waiting_client_start = State()
-
-    waiting_feedback_start = State()
-
-    waiting_feedback_answer = State()
+    # Квест 34 - Фидбек
+    waiting_feedback_start = State()  # Ожидание старта опроса
+    waiting_feedback_answer = State()  # Ожидание ответа на вопрос опроса
+    waiting_feedback_text = State()  # Ожидание текстового ответа
 
 
 

@@ -4841,10 +4841,3 @@ async def finish_quest26(message: types.Message, state: FSMContext):
     )
     await state.clear()
 
-
-
-# Обработчик для всех остальных ответов
-@router.callback_query(QuestState.waiting_for_answer)
-async def handle_other_answers(callback: types.CallbackQuery):
-    # Уведомляем пользователя, что ответ неверный
-    await callback.answer("Ответ неверный. Попробуйте ещё раз!")

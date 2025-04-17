@@ -476,3 +476,35 @@ def quest26_skip_keyboard():
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard
+
+# Квест 28 - Собери все
+def quest28_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="СТАРТ", callback_data="start_assembly_28")]
+    ])
+
+def quest28_finish_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="ФИНИШ", callback_data="finish_assembly_28")]
+    ])
+
+# Квест 29 - Фотоохота
+def quest29_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="СТАРТ", callback_data="start_photo_hunt_29")]
+    ])
+
+# Квест 31 - Ценность кадра
+def quest31_start_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Начать тест", callback_data="start_quiz_31")]
+    ])
+
+# Квест 34 - Фидбек
+def quest34_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="1", callback_data="answer_34_0_0"),
+         InlineKeyboardButton(text="2", callback_data="answer_34_0_1")],
+        [InlineKeyboardButton(text="3", callback_data="answer_34_0_2"),
+         InlineKeyboardButton(text="4", callback_data="answer_34_0_3")]
+    ])
