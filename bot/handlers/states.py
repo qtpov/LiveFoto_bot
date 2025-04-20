@@ -1,6 +1,10 @@
 # states.py
 from aiogram.fsm.state import StatesGroup, State
 
+class SalesState(StatesGroup):
+    WAITING_PHOTO_33 = State()
+    WAITING_PRODUCT_DESC_33 = State()
+    HANDLING_REFUSAL_33 = State()
 
 class QuestState(StatesGroup):
     # Общие состояния
@@ -87,17 +91,20 @@ class QuestState(StatesGroup):
 
     # Квест 28 - Собери все
     waiting_assembly_start = State()  # Ожидание старта сборки
-    waiting_assembly_finish = State()  # Ожидание завершения сборки
+    waiting_for_finish_quest28 = State()  # Ожидание завершения сборки
+    waiting_for_quest28_video = State()
 
     # Квест 29 - Фотоохота
     waiting_photo_hunt_start = State()  # Ожидание старта фотоохоты
     waiting_photo_hunt_stop = State()  # Ожидание остановки фотоохоты
-    waiting_photo_submit = State()  # Ожидание отправки фото
+    waiting_custom_reason = State()  # Ожидание отправки фото
     waiting_photo_feedback = State()  # Ожидание фидбека по фотоохоте
+    waiting_photo_upload = State()
 
     # Квест 30 - Полный цикл
     waiting_full_cycle_step = State()  # Ожидание следующего шага
     waiting_sales_amount = State()  # Ожидание ввода суммы продаж
+    waiting_sold_photos = State()
 
     # Квест 31 - Ценность кадра
     waiting_quiz_start = State()  # Ожидание старта теста
@@ -108,11 +115,12 @@ class QuestState(StatesGroup):
     waiting_scenario_answer = State()  # Ожидание ответа на сценарий
 
     # Квест 33 - Клиент
-    waiting_client_start = State()  # Ожидание старта взаимодействия
-    waiting_client_finish = State()  # Ожидание завершения
+    waiting_photo_33 = State()
+    waiting_product_desc_33 = State()
+    handling_refusal_33 = State()
 
     # Квест 34 - Фидбек
-    waiting_feedback_start = State()  # Ожидание старта опроса
+    waiting_feedback_34 = State()  # Ожидание старта опроса
     waiting_feedback_answer = State()  # Ожидание ответа на вопрос опроса
     waiting_feedback_text = State()  # Ожидание текстового ответа
 

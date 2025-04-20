@@ -500,6 +500,8 @@ def quest31_start_keyboard():
         [InlineKeyboardButton(text="Начать тест", callback_data="start_quiz_31")]
     ])
 
+
+
 # Квест 34 - Фидбек
 def quest34_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[

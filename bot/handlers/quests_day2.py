@@ -4832,6 +4832,7 @@ async def finish_quest26(message: types.Message, state: FSMContext):
 
         await update_user_level(message.from_user.id, session)
         await update_user_day(message.from_user.id, session)
+        await give_achievement(message.from_user.id, 26, session)
         await session.commit()
 
     # Отправляем пользователю
