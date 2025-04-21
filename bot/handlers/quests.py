@@ -104,10 +104,14 @@ async def next_quest(callback: types.CallbackQuery, state: FSMContext):
     next_quest_id = None
 
     # Удаляем сообщение с результатами
-    user_data = await state.get_data()
-    question_message_id = user_data.get("question_message_id")
-
-    await callback.message.delete()
+    try:
+        user_data = await state.get_data()
+        question_message_id = user_data.get("question_message_id")
+        await callback.message.delete()
+        if question_message_id:
+            await callback.bot.delete_message(callback.message.chat.id, question_message_id)
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
 
     # Находим следующий невыполненный квест
     for quest_id, _ in quests_today:
@@ -116,11 +120,21 @@ async def next_quest(callback: types.CallbackQuery, state: FSMContext):
             break
 
     if next_quest_id:
-        await state.update_data(current_quest_id=next_quest_id, current_question=1, correct_count=0)
+        # Явно сбрасываем состояние и устанавливаем новые параметры
+        await state.clear()
+        await state.update_data(
+            current_quest_id=next_quest_id,
+            current_question=1,
+            correct_count=0
+        )
+        await state.set_state(QuestState.waiting_for_answer)
+
+        # Запускаем новый квест
         await globals()[f"quest_{next_quest_id}"](callback, state)
     else:
         await callback.message.answer("Все квесты на сегодня выполнены! 🎉")
         await state.clear()
+
     await callback.answer()
 
 # Функция для вывода списка квестов
@@ -1927,41 +1941,48 @@ async def handle_quest1_answer(callback: types.CallbackQuery, state: FSMContext)
     current_quest_id = user_data.get("current_quest_id", 1)
 
     async with SessionLocal() as session:
-        user_result = await session.execute(
-            select(UserResult).filter(
-                UserResult.user_id == callback.from_user.id,
-                UserResult.quest_id == current_quest_id
+        try:
+            # Получаем или создаем запись о результате
+            user_result = await session.execute(
+                select(UserResult).filter(
+                    UserResult.user_id == callback.from_user.id,
+                    UserResult.quest_id == current_quest_id
+                )
             )
-        )
-        user_result = user_result.scalars().first()
+            user_result = user_result.scalars().first()
 
-        if not user_result:
-            user_result = UserResult(
-                user_id=callback.from_user.id,
-                quest_id=current_quest_id,
-                state="не выполнен",
-                attempt=1,
-                result=0
-            )
-            session.add(user_result)
+            if not user_result:
+                user_result = UserResult(
+                    user_id=callback.from_user.id,
+                    quest_id=current_quest_id,
+                    state="не выполнен",
+                    attempt=1,
+                    result=0
+                )
+                session.add(user_result)
+                await session.flush()
+            elif user_result.state == "выполнен":
+                await callback.answer("Этот квест уже выполнен!")
+                return
 
-        if user_result.state == "выполнен":
-            await callback.answer("Этот квест уже выполнен!")
+            # Проверяем ответ пользователя
+            if callback.data == correct_answers[current_question]:
+                correct_count += 1
+                user_result.result += 1
+                await callback.answer('Верный ответ!')
+            else:
+                await callback.answer('Ответ неверный.')
+
+            # Если все вопросы пройдены, отмечаем квест как выполненный
+            if current_question == len(correct_answers):
+                user_result.state = "выполнен"
+
+            await session.commit()
+
+        except IntegrityError as e:
+            await session.rollback()
+            await callback.answer("Произошла ошибка при сохранении результата. Попробуйте еще раз.")
             return
-
-        # Проверяем ответ пользователя
-        if callback.data == correct_answers[current_question]:
-            correct_count += 1
-            user_result.result += 1
-            await callback.answer('Верный ответ!')
-        else:
-            await callback.answer('Ответ неверный.')
-
-        # Если все вопросы пройдены, отмечаем квест как выполненный
-        if current_question == len(correct_answers):
-            user_result.state = "выполнен"
-
-        await session.commit()
 
     # Обновляем состояние FSM
     await state.update_data(correct_count=correct_count)
@@ -1973,7 +1994,7 @@ async def handle_quest1_answer(callback: types.CallbackQuery, state: FSMContext)
         await finish_quest(callback, state, correct_count, len(correct_answers), current_quest_id)
     else:
         await state.update_data(current_question=current_question)
-        await quest_1(callback, state)  # Запускаем следующий вопрос
+        await quest_1(callback, state)
 
     await callback.answer()
 
@@ -1983,56 +2004,67 @@ async def handle_quest2_answer(callback: types.CallbackQuery, state: FSMContext)
     user_data = await state.get_data()
     current_question = user_data.get("current_question", 1)
     correct_count = user_data.get("correct_count", 0)
-    current_quest_id = user_data.get("current_quest_id", 1)
+    current_quest_id = user_data.get("current_quest_id", 2)  # ID квеста 2
 
     async with SessionLocal() as session:
-        user_result = await session.execute(
-            select(UserResult).filter(
-                UserResult.user_id == callback.from_user.id,
-                UserResult.quest_id == current_quest_id
+        try:
+            # Получаем или создаем запись о результате
+            user_result = await session.execute(
+                select(UserResult).filter(
+                    UserResult.user_id == callback.from_user.id,
+                    UserResult.quest_id == current_quest_id
+                )
             )
-        )
-        user_result = user_result.scalars().first()
+            user_result = user_result.scalars().first()
 
-        if not user_result:
-            user_result = UserResult(
-                user_id=callback.from_user.id,
-                quest_id=current_quest_id,
-                state="не выполнен",
-                attempt=1,
-                result=0
-            )
-            session.add(user_result)
+            if not user_result:
+                user_result = UserResult(
+                    user_id=callback.from_user.id,
+                    quest_id=current_quest_id,
+                    state="не выполнен",
+                    attempt=1,
+                    result=0
+                )
+                session.add(user_result)
+                await session.flush()
+            elif user_result.state == "выполнен":
+                await callback.answer("Этот квест уже выполнен!")
+                return
 
-        if user_result.state == "выполнен":
-            await callback.answer("Этот квест уже выполнен!")
+            # Проверяем ответ пользователя
+            if callback.data == correct_answers_qw2[current_question]:
+                correct_count += 1
+                user_result.result += 1
+                await callback.answer('Верный ответ!')
+            else:
+                await callback.answer('Ответ неверный.')
+
+            # Если все вопросы пройдены, отмечаем квест как выполненный
+            if current_question == len(correct_answers_qw2):
+                user_result.state = "выполнен"
+
+            await session.commit()
+
+        except IntegrityError as e:
+            await session.rollback()
+            await callback.answer("Произошла ошибка при сохранении результата. Попробуйте еще раз.")
             return
 
-        if callback.data == correct_answers_qw2[current_question]:
-            correct_count += 1
-            user_result.result += 1
-            await callback.answer('Верный ответ!')
-        else:
-            await callback.answer('Ответ неверный.')
-
-        if current_question == len(correct_answers_qw2):
-            user_result.state = "выполнен"
-
-        await session.commit()
-
+    # Обновляем состояние FSM
     await state.update_data(correct_count=correct_count)
 
+    # Переход к следующему вопросу или завершение квеста
     current_question += 1
     if current_question > len(correct_answers_qw2):
         await callback.message.delete()
         await finish_quest(callback, state, correct_count, len(correct_answers_qw2), current_quest_id)
-        await update_user_level(callback.from_user.id, session)
+        async with SessionLocal() as session:
+            await update_user_level(callback.from_user.id, session)
     else:
         await state.update_data(current_question=current_question)
         await quest_2(callback, state)
 
     await callback.answer()
-
 
 # Обработчик выбора цифр квест 4
 @router.callback_query(F.data.startswith("select_"), QuestState.waiting_for_selection)

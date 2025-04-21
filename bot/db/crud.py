@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
-from .models import User, Achievement, Moderation, UserProfile, UserResult
+from .models import User, Achievement, UserProfile, UserResult
 
 async def get_user_by_tg_id(session: AsyncSession, telegram_id: int):
     result = await session.execute(select(User).filter(User.telegram_id == telegram_id))

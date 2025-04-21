@@ -1,17 +1,9 @@
 from sqlalchemy import Column, BigInteger, Integer, String, ForeignKey, Boolean, DateTime, func, ARRAY, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy import UniqueConstraint
+
 from .session import Base
 
-# class Task(Base):
-#     __tablename__ = "tasks"
-#     id = Column(Integer, primary_key=True, index=True)
-#     title = Column(String, index=True)
-#     description = Column(String)
-#     options = Column(ARRAY(String))
-#     correct_answer = Column(String)
-#     day = Column(Integer)
-#     quest_id = Column(Integer)
-#     photo = Column(String, nullable=True)  # Новое поле для хранения ссылки на фото
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
@@ -35,14 +27,20 @@ class User(Base):
     day = Column(Integer, default=1)
     profile = relationship("UserProfile", back_populates="user", uselist=False)  # Один-к-одному
 
+
 class UserResult(Base):
     __tablename__ = "user_results"
     id = Column(Integer, primary_key=True)
     user_id = Column(BigInteger, ForeignKey("users.telegram_id"))  # Связь с User по telegram_id
-    quest_id = Column(Integer)  # Добавляем поле для хранения quest_id
+    quest_id = Column(Integer)  # ID квеста
     state = Column(String, nullable=False)
     attempt = Column(Integer, default=1)
-    result = Column(Integer, default=0)  # Количество верных ответов для этого задания
+    result = Column(Integer, default=0)  # Количество верных ответов
+
+    # Добавляем составной уникальный индекс
+    __table_args__ = (
+        UniqueConstraint('user_id', 'quest_id', name='_user_quest_uc'),
+    )
 
 class Achievement(Base):
     __tablename__ = "achievements"
@@ -51,11 +49,3 @@ class Achievement(Base):
     description = Column(String, nullable=False)
     user_id = Column(BigInteger, ForeignKey("users.telegram_id"))  # Связь с User по telegram_id
     user = relationship("User")
-
-class Moderation(Base):
-    __tablename__ = "moderation"
-    id = Column(Integer, primary_key=True)
-    task_id = Column(Integer)  # Связь с task
-    status = Column(String, default="pending")  # approved, rejected
-    user_id = Column(BigInteger, ForeignKey("users.telegram_id"))  # Связь с User по telegram_id
-    #timestamp = Column(DateTime, default=func.now())

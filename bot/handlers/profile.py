@@ -2,7 +2,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from sqlalchemy.future import select
 from bot.db.session import SessionLocal
-from bot.db.models import User, Achievement, Moderation, UserResult
+from bot.db.models import User, Achievement, UserResult
 from sqlalchemy import delete
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
