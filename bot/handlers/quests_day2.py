@@ -1935,8 +1935,8 @@ async def finish_quest17(callback: types.CallbackQuery, state: FSMContext):
             # Отправляем результат пользователю
             message = await callback.message.answer(
                 "✅ Квест 17 завершен!\n"
-                     "Все упражнения выполнены. Отличная работа!\n",
-                f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!",
+                "Все упражнения выполнены. Отличная работа!\n",
+                "Поздравляем! Вы получили ачивку за выполнение квеста на 100%!",
                 reply_markup=get_quest_finish_keyboard(3, 3, 17)
             )
         else:

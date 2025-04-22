@@ -13,9 +13,9 @@ from bot.db.session import SessionLocal
 from bot.keyboards.inline import *
 from .states import QuestState
 from bot.configurate import settings
-from .moderation import give_achievement
 from bot.db.crud import update_user_level
 from .moderation import give_achievement, get_quest_finish_keyboard
+from .quests_day2 import finish_quest
 from bot.db.models import User
 
 
@@ -24,7 +24,7 @@ admin_chat_id = settings.ADMIN_ID
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Словари с правильными ответами и сообщениями
-correct_answers_qw27 = {1: 2, 2: 1, 3: 3}
+correct_answers_qw27 = {1: 2, 2: 1, 3: 2}
 feedback_messages_qw27 = {
     1: {
         "correct": "Прекрасный загар и верный ответ",
@@ -43,8 +43,23 @@ feedback_messages_qw27 = {
 correct_answers_qw32 = {1: 1, 2: 0, 3:1}
 
 
+def create_options_keyboard(options: list[str], prefix: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for i, opt in enumerate(options):
+        builder.button(text=str(i+1), callback_data=f"{prefix}_{i}")
+    builder.adjust(2)
+    return builder.as_markup()
+
+def create_options_keyboard_text(options: list[str], prefix: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for i, opt in enumerate(options):
+        builder.button(text=opt, callback_data=f"{prefix}_{i}")  # Используем текст опции вместо номера
+    builder.adjust(2)  # Располагаем кнопки по 2 в ряду
+    return builder.as_markup()
+
+
 # Общая функция завершения квеста
-async def finish_quest(callback: types.CallbackQuery, state: FSMContext,
+async def finish_quest3(callback: types.CallbackQuery, state: FSMContext,
                        correct_count: int, total_questions: int, quest_id: int):
     user_data = await state.get_data()
 
@@ -176,7 +191,7 @@ async def handle_quest27_answer(callback: types.CallbackQuery, state: FSMContext
             correct_answers=correct_answers
         )
     else:
-        await finish_quest(callback, state, correct_answers, len(correct_answers_qw27), 27)
+        await finish_quest3(callback, state, correct_answers, len(correct_answers_qw27), 27)
 
     await callback.answer()
 
@@ -630,12 +645,12 @@ async def submit_photos_29(callback: types.CallbackQuery, state: FSMContext):
 
     # Просто запрашиваем фидбек, не сохраняя фото в БД
     await callback.message.answer(
-        "Фотографии готовы к отправке. Какие были трудности? (Можно пропустить)",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Пропустить", callback_data="skip_feedback_29")]
-        ])
+        "Фотографии готовы к отправке. Какие были трудности?"
     )
-
+    # ,
+    # reply_markup = InlineKeyboardMarkup(inline_keyboard=[
+    #     [InlineKeyboardButton(text="Пропустить", callback_data="skip_feedback_29")]
+    # ])
     await state.set_state(QuestState.waiting_feedback_text)
     await callback.answer()
 
@@ -1013,19 +1028,23 @@ async def handle_sales_amount(message: types.Message, state: FSMContext):
 
         if sold_photos:
             try:
-
                 if len(sold_photos) > 1:
-                    album = MediaGroupBuilder()
+                    # Для нескольких фото - отправляем альбом с подписью
+                    album = MediaGroupBuilder(caption=caption)
                     for photo in sold_photos:
                         album.add_photo(media=photo)
-                    await message.bot.send_media_group(admin_chat_id, media=album.build())\
-
+                    await message.bot.send_media_group(admin_chat_id, media=album.build())
+                else:
+                    # Для одного фото - отправляем с подписью
+                    await message.bot.send_photo(
+                        admin_chat_id,
+                        photo=sold_photos[0],
+                        caption=caption
+                    )
             except Exception as e:
                 logging.error(f"Ошибка отправки фото: {e}")
-
-            await message.bot.send_message(
-                admin_chat_id,text=caption
-            )
+                # Если не удалось отправить фото, отправляем хотя бы текст
+                await message.bot.send_message(admin_chat_id, caption)
         else:
             await message.bot.send_message(admin_chat_id, caption)
 

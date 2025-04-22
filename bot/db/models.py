@@ -37,11 +37,6 @@ class UserResult(Base):
     attempt = Column(Integer, default=1)
     result = Column(Integer, default=0)  # Количество верных ответов
 
-    # Добавляем составной уникальный индекс
-    __table_args__ = (
-        UniqueConstraint('user_id', 'quest_id', name='_user_quest_uc'),
-    )
-
 class Achievement(Base):
     __tablename__ = "achievements"
     id = Column(Integer, primary_key=True)
