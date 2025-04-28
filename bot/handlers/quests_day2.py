@@ -513,7 +513,7 @@ async def send_quest13_task(callback: types.CallbackQuery, state: FSMContext):
                     "- Диафрагма открыта максимально для объектива\n"
                     "- Выдержка 100-150\n\n"
                     "Фотографию загрузите в Lightroom и отправьте скриншот из режима редактирования.",
-            "keyboard": quest13_task_keyboard()
+            # "keyboard": quest13_task_keyboard()
         },
         2: {
             "text": "📷 Задание 2/3:\n"
@@ -523,7 +523,7 @@ async def send_quest13_task(callback: types.CallbackQuery, state: FSMContext):
                     "- Диафрагма минимальная\n"
                     "- Выдержка стандартная\n\n"
                     "Фотографию загрузите в Lightroom и отправьте скриншот из режима редактирования.",
-            "keyboard": quest13_task_keyboard()
+            # "keyboard": quest13_task_keyboard()
         },
         3: {
             "text": "📷 Задание 3/3:\n"
@@ -532,13 +532,12 @@ async def send_quest13_task(callback: types.CallbackQuery, state: FSMContext):
                     "- Диафрагма 4.5-10F\n"
                     "- Правильная экспозиция\n\n"
                     "Фотографию загрузите в Lightroom и отправьте скриншот из режима редактирования.",
-            "keyboard": quest13_finish_tasks_keyboard()
+            # "keyboard": quest13_finish_tasks_keyboard()
         }
     }
 
     message = await callback.message.answer(
-        tasks[current_task]["text"],
-        reply_markup=tasks[current_task]["keyboard"]
+        tasks[current_task]["text"]
     )
 
     await state.update_data(
@@ -706,23 +705,23 @@ async def quest_14(callback: types.CallbackQuery, state: FSMContext):
     sample_shots = [
         {
             "file_id": "AgACAgIAAxkBAAImGWfz4xzgScJdAAGcPSyjQMhfLErttwACYPExG5DcoUu5t7Q2nJC8jgEAAwIAA3kAAzYE",
-            "description": "🔼 Кадр сверху вниз:"
+            "description": "Локация “Батуты”, дальний план в полный рост, ребенок в прыжке, видно фазу полёта, смотрит в камеру, руки разводит в стороны  или делает любой понравившийся ему жест, на лице улыбка."
         },
         {
             "file_id": "AgACAgIAAxkBAAImF2fz4xQAAfkQvZDwrTsEp4HksUCM9wACX_ExG5DcoUtTVN7oo4PozgEAAwIAA3kAAzYE",
-            "description": "📐 Кадр под углом 45°:\nСнимите сбоку под углом, акцентируя внимание на взаимодействии ребёнка с шарами"
+            "description": "Локация “Детская”, средний план в полный рост, ребенок сидит на полу, смотрит в камеру, в руках игрушка, на лице улыбка, лучше держать камеру на уровне ребёнка, чтоб на фоне была локация."
         },
         {
             "file_id": "AgACAgIAAxkBAAImD2fz4nfoKsDftnMib1kmgO3XS_gSAAJZ8TEbkNyhS3Vp4OVknUyAAQADAgADeQADNgQ",
-            "description": "👶 Кадр на уровне глаз ребёнка:\nСнимите горизонтально, чтобы передать мир глазами ребёнка"
+            "description": "Локация “Трон”, план по пояс, ребёнок сидит на троне, смотрит в камеру, прижимается рукой к подлокотнику, голова прижата к руке, на лице улыбка."
         },
         {
             "file_id": "AgACAgIAAxkBAAImFWfz4ws0LZRuuMap6gaKW3k1GjTNAAJe8TEbkNyhSwX5urMKlVD-AQADAgADeQADNgQ",
-            "description": "🌊 Кадр 'моря из шариков':\nСнимите сверху с широким углом, чтобы захватить максимальное количество шаров"
+            "description": "Локация “Лабиринт”, план по пояс сверху, ребёнок лежит в шариках, смотрит в камеру, руки за головой, на лице улыбка"
         },
         {
             "file_id": "AgACAgIAAxkBAAImG2fz4yq_LS4V_tuyNEoEIGMmWCD1AAJh8TEbkNyhSz7tTj8yAeKUAQADAgADeQADNgQ",
-            "description": "🌊 Кадр : "
+            "description":"Локация “Автоматы”, средний план по пояс. ребенок стоит, смотрит в камеру, в руках  джойстик или игровое оружие, на лице улыбка, лучше держать камеру на уровне ребёнка, чтоб на фоне была локация."
         }
     ]
 
@@ -830,19 +829,18 @@ async def request_shot_14(callback: types.CallbackQuery, state: FSMContext):
 
     # Определяем описание для текущей зоны
     zone_descriptions = {
-        1: "🔼 Сделайте кадр сверху вниз",
-        2: "📐 Сделайте кадр под углом 45°",
-        3: "👶 Сделайте кадр на уровне глаз ребёнка",
-        4: "🌊 Сделайте кадр 'моря из шариков'",
-        5: "Сделайте кадр "
+        1: "Сделайте кадр:\n Локация “трон”, план по пояс, ребёнок сидит на троне, смотрит в камеру, прижимается рукой к подлокотнику, голова прижата к руке, на лице улыбка.",
+        2: "Сделайте кадр:\n Локация “Лабирин”, план по пояс сверху, ребёнок лежит в шариках, смотрит в камеру, руки за головой, на лице улыбка.",
+        3: "Сделайте кадр:\n Локация “детская”, средний план в полный рост, ребенок сидит на полу, смотрит в камеру, в руках игрушка, на лице улыбка, лучше держать камеру на уровне ребёнка, чтоб на фоне была локация.",
+        4: "Сделайте кадр:\n Локация “батуты”, дальний план в полный рост, ребенок в прыжке, видно фазу полёта, смотрит в камеру, руки разводит в стороны  или делает любой понравившийся ему жест, на лице улыбка.",
+        5: "Сделайте кадр:\n Локация “автоматы”, средний план по пояс.  ребенок стоит, смотрит в камеру, в руках  джойстик или игровое оружие, на лице улыбка, лучше держать камеру на уровне ребёнка, чтоб на фоне была локация."
     }
 
     # Отправляем напоминание о текущей зоне
     message = await callback.message.answer(
         f"📷 Зона {current_zone}/{total_zones}\n"
         f"{zone_descriptions[current_zone]}\n\n"
-        "Сфотографируйте этот кадр на экране монитора и отправьте фото.",
-        reply_markup=quest14_skip_zone_keyboard() if current_zone < total_zones else quest14_finish_shooting_keyboard()
+        "Сфотографируйте этот кадр на экране монитора и отправьте фото."
     )
 
     await state.update_data(
@@ -1142,17 +1140,13 @@ async def request_quest15_photo(message_or_callback: types.Message | types.Callb
 
     message_text = (
         f"📷 Квест 15: 1000 Поз\n\n"
-        f"Отправьте {remaining} фото {gender_text} по шаблону.\n"
+        f"Отправьте фото {gender_text} по шаблону.\n"
         "Фото должны быть сделаны в соответствии с показанным примером."
     )
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Пропустить", callback_data="skip_quest15_photo")]
-    ])
 
     sent_message = await message.answer(
-        message_text,
-        reply_markup=keyboard
+        message_text
     )
 
     await state.update_data(
@@ -1294,37 +1288,39 @@ async def finish_quest15(message: types.Message, state: FSMContext):
         f"Девочки: {len(girl_photos)} фото"
     )
 
-    # Отправляем шаблоны и фото модератору в нескольких медиагруппах
-    try:
+    # Отправляем заголовок модератору
+    await message.bot.send_message(admin_chat_id, caption)
 
-        # 2. Фото мальчиков (может потребоваться несколько медиагрупп)
-        for i in range(0, len(boy_photos), 10):  # Разбиваем по 10 фото
-            media_boy_photos = MediaGroupBuilder()
-            for photo in boy_photos[i:i+10]:
-                media_boy_photos.add_photo(media=photo["file_id"], caption=f"Фото мальчика")
-            await message.bot.send_media_group(admin_chat_id, media=media_boy_photos.build())
+    # Отправляем фото мальчиков по одному
+    if boy_photos:
+        await message.bot.send_message(admin_chat_id, "📷 Фото мальчиков:")
+        for i, photo in enumerate(boy_photos, 1):
+            try:
+                await message.bot.send_photo(
+                    admin_chat_id,
+                    photo["file_id"],
+                    caption=f"Мальчик {i}/{len(boy_photos)}"
+                )
+            except Exception as e:
+                print(f"Ошибка при отправке фото мальчика {i}: {e}")
 
+    # Отправляем фото девочек по одному
+    if girl_photos:
+        await message.bot.send_message(admin_chat_id, "📷 Фото девочек:")
+        for i, photo in enumerate(girl_photos, 1):
+            try:
+                await message.bot.send_photo(
+                    admin_chat_id,
+                    photo["file_id"],
+                    caption=f"Девочка {i}/{len(girl_photos)}"
+                )
+            except Exception as e:
+                print(f"Ошибка при отправке фото девочки {i}: {e}")
 
-        # 4. Фото девочек (может потребоваться несколько медиагрупп)
-        for i in range(0, len(girl_photos), 10):  # Разбиваем по 10 фото
-            media_girl_photos = MediaGroupBuilder()
-            for photo in girl_photos[i:i+10]:
-                media_girl_photos.add_photo(media=photo["file_id"], caption=f"Фото девочки ")
-            await message.bot.send_media_group(admin_chat_id, media=media_girl_photos.build())
-
-    except Exception as e:
-        print(f"Ошибка при отправке медиагруппы: {e}")
-        # Если не удалось отправить медиагруппу, отправляем по одному фото
-        await message.bot.send_message(admin_chat_id, caption)
-        for photo in boy_photos:
-            await message.bot.send_photo(admin_chat_id, photo["file_id"])
-        for photo in girl_photos:
-            await message.bot.send_photo(admin_chat_id, photo["file_id"])
-
-    # Дополнительная информация для модератора
+    # Отправляем кнопки модерации
     await message.bot.send_message(
         admin_chat_id,
-        caption,
+        "Выберите действие:",
         reply_markup=moderation_keyboard(message.from_user.id, 15)
     )
 
@@ -1532,13 +1528,13 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
         }
     }
 
-    # Отправляем инструкцию
+    # Отправляем инструкцию с кнопкой
     message = await callback.message.answer(
         "💬 Квест 16: Дожми до результата\n\n"
         "Вам нужно убедить виртуального клиента согласиться на фотосессию.\n"
         "Выберите наиболее подходящие ответы в диалоге.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Начать диалог", callback_data="start_quest16")]
+            [InlineKeyboardButton(text="Начать диалог", callback_data="next_quest16_dialog")]
         ])
     )
 
@@ -1585,11 +1581,10 @@ async def show_quest16_scenario(callback: types.CallbackQuery, state: FSMContext
     if current_dialog == -1:
         scenario = scenarios[current_scenario]
         message = await callback.message.answer(
-            f"📌 Сценарий: {scenario['name']}\n\n"
-            f"{scenario['description']}\n\n"
-            "Нажмите 'Продолжить' чтобы начать диалог",
+            f"📌 Ситуация: {scenario['name']}\n\n"
+            f"{scenario['description']}",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Продолжить", callback_data="next_quest16_dialog")]
+                [InlineKeyboardButton(text="Начать диалог", callback_data="next_quest16_dialog")]
             ])
         )
         await state.update_data(
@@ -1608,8 +1603,42 @@ async def show_quest16_scenario(callback: types.CallbackQuery, state: FSMContext
 
     # Показываем текущий диалог
     dialog = scenario["dialogs"][current_dialog]
+    response = dialog["responses"].get(0, {})
 
-    message_text = f"📌 Сценарий: {scenario['name']}\n\n"
+    # Для диалогов с единственным вариантом "далее"
+    if len(dialog["options"]) == 1 and dialog["options"][0].lower() == "далее":
+        message_text = f"📌 Ситуация: {scenario['name']}\n\n"
+        if dialog["client"]:
+            message_text += f"👤 Клиент: {dialog['client']}\n\n"
+        message_text += f"📷 Фотограф: {dialog['photographer']}"
+
+        # Используем кнопку "Далее" вместо цифры 1
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Далее", callback_data=f"qw16_0")]
+        ])
+
+        message = await callback.message.answer(
+            message_text,
+            reply_markup=keyboard
+        )
+
+        # Добавляем финальное сообщение, если оно есть
+        if "final_feedback" in dialog:
+            await callback.message.answer(f"🎉 {dialog['final_feedback']}")
+
+        await state.update_data(
+            question_message_id=message.message_id,
+            current_dialog_data=dialog
+        )
+        return
+
+    # Оригинальная логика для всех остальных диалогов
+    if len(dialog["responses"]) == 1:
+        message_text = f" {response['feedback']}\n\n"
+    else:
+        message_text = ""
+
+    message_text += f"📌 Ситуация: {scenario['name']}\n\n"
     if dialog["client"]:
         message_text += f"👤 Клиент: {dialog['client']}\n\n"
     message_text += f"📷 Фотограф: {dialog['photographer']}\n\n"
@@ -1638,7 +1667,6 @@ async def show_quest16_scenario(callback: types.CallbackQuery, state: FSMContext
         question_message_id=message.message_id,
         current_dialog_data=dialog
     )
-
 
 @router.callback_query(F.data == "next_quest16_dialog")
 async def next_quest16_dialog(callback: types.CallbackQuery, state: FSMContext):

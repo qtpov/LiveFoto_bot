@@ -455,7 +455,10 @@ async def ask_quest3_question(callback: types.CallbackQuery, state: FSMContext):
             print(f"Ошибка при удалении сообщения: {e}")
 
     # Задаём вопрос
-    question_text = f"Какой следующий этап основного процесса?"
+    if current_question == 1:
+        question_text = f"Какой первый этап основного процесса?"
+    else:
+        question_text = f"Какой следующий этап основного процесса?"
     message = await callback.message.answer(
         question_text,
         reply_markup=quest3_keyboard(current_question)
@@ -934,6 +937,7 @@ PRODUCT_GROUPS = {
                 "price": "2000 руб.",
                 "photo": "products/photos_frame/photo_frame.jpg"
             }
+
         ]
 
     },
@@ -982,31 +986,31 @@ PRODUCT_GROUPS = {
         "name": "📸 Сувениры",
         "items": [
             {
-                "name": "Коллаж А4 ",
+                "name": "Кружка",
                 "price": "2000 руб.",
                 "photo": "products/suvenir/cup.jpg",
                 "description": " "
             },
             {
-                "name": "Коллаж А4 в рамке",
-                "price": "1200 руб.",
+                "name": "Рамка",
+                "price": "5000 руб.",
                 "photo": "products/suvenir/frame_fly.jpg",
                 "description": " "
             },
             {
-                "name": "Коллаж А5 ",
+                "name": "Стикер",
                 "price": "1100 руб.",
                 "photo": "products/suvenir/sticker.jpg",
                 "description": " "
             },
             {
-                "name": "Коллаж А5 в рамке",
+                "name": "Брелок",
                 "price": "1100 руб.",
                 "photo": "products/suvenir/ny_circle.jpg",
                 "description": " "
             },
             {
-                "name": "Коллаж А5 в рамке",
+                "name": "Значек",
                 "price": "1100 руб.",
                 "photo": "products/suvenir/znak.jpg",
                 "description": " "
@@ -1130,7 +1134,7 @@ QUEST7_TEST_QUESTIONS  = {
         },
         7: {
             "name": "левитирующая рамка",
-            "photo": BASE_DIR / "handlers/media/photo/products/zaglushka.png",
+            "photo": BASE_DIR / "handlers/media/photo/products/ramka.jpg",
             "options": ["2000", "5000", "5500", "3500"],
             "correct": "5000",
             "description": 'Уникальность, универсальность – рамка будет не только дополнять и разбавлять интерьер квартиры, но её можно использовать, как ночник для детей. Так же в рамке используются 2 фотографии, которые можно менять со временем, покрытие пленки-глянцевое. Используется как "золотой" продукт - на фоне цены левитирующей рамки, цены на остальные виды продукции воспринимаются как оптимальные.'
@@ -1528,11 +1532,17 @@ async def quest_8(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(theory_video_id=theory_video.message_id, theory_shown=True)
         return
 
-    # Отправляем текущий вопрос
+    # Отправляем текущий вопрос с пронумерованными вариантами
     current_q = questions.get(current_question)
+    question_text = f"Квест 8: Теория продаж\n{current_q['text']}\n\n"
+
+    # Добавляем пронумерованные варианты ответов
+    for i, option in enumerate(current_q["options"], 1):
+        question_text += f"{i}. {option}\n"
+
     question_message = await callback.message.answer(
-        f"Квест 8: Теория продаж\n{current_q['text']}",
-        reply_markup=quest8_keyboard(current_q["options"])
+        question_text,
+        reply_markup=quest8_keyboard(len(current_q["options"]))
     )
 
     await state.update_data(
@@ -1620,19 +1630,16 @@ async def handle_quest8_answer(callback: types.CallbackQuery, state: FSMContext)
     current_q = user_data.get("current_question_data")
     total_questions = user_data.get("total_questions", 5)
 
-    # Получаем хэш выбранного варианта
-    selected_hash = callback.data[4:]
+    # Получаем номер выбранного варианта
+    selected_number = int(callback.data.split("_")[1])
 
-    # Находим выбранный вариант по хэшу
-    selected_answer = None
-    for option in current_q["options"]:
-        if str(hash(option)) == selected_hash:
-            selected_answer = option
-            break
-
-    if selected_answer is None:
-        await callback.answer("Ошибка обработки ответа")
+    # Проверяем, что номер в допустимом диапазоне
+    if selected_number < 1 or selected_number > len(current_q["options"]):
+        await callback.answer("Неверный номер варианта")
         return
+
+    # Получаем выбранный ответ
+    selected_answer = current_q["options"][selected_number - 1]
 
     async with SessionLocal() as session:
         user_result = await session.execute(

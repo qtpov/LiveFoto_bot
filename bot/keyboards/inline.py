@@ -259,15 +259,17 @@ def quest8_start_keyboard():
         [InlineKeyboardButton(text="Приступить к тесту", callback_data="start_quest8_test")]
     ])
 
-def quest8_keyboard(options):
+def quest8_keyboard(options_count):
     buttons = []
-    for option in options:
-        # Используем хэш вместо сокращения текста
-        callback_data = f"qw8_{hash(option)}"
-        buttons.append([InlineKeyboardButton(
-            text=option,
-            callback_data=callback_data
-        )])
+    row = []
+    for i in range(1, options_count + 1):
+        row.append(InlineKeyboardButton(
+            text=str(i),
+            callback_data=f"qw8_{i}"
+        ))
+        if len(row) == 2 or i == options_count:  # 2 кнопки в строке или последняя кнопка
+            buttons.append(row)
+            row = []
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def quest9_cancel_keyboard():
@@ -388,16 +390,15 @@ def get_day_finish_keyboard(current_quest_id):
 
 
 
-
 # Клавиатуры для квеста 12
 def quest12_keyboard(options: list[str]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for option in options:
-        builder.add(InlineKeyboardButton(
+        builder.row(InlineKeyboardButton(
             text=option.capitalize(),
             callback_data=f"qw12_{option}"
         ))
-    builder.adjust(2)
+    builder.adjust(1)
     return builder.as_markup()
 
 def quest12_back_to_question_keyboard() -> InlineKeyboardMarkup:
@@ -417,10 +418,6 @@ def quest13_continue_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Продолжить", callback_data="continue_quest13")]
     ])
 
-def quest13_task_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Пропустить", callback_data="skip_task_13")]
-    ])
 
 def quest13_skip_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
