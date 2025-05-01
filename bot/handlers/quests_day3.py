@@ -223,16 +223,13 @@ async def quest_28(callback: types.CallbackQuery, state: FSMContext):
 
     message = await callback.message.answer(
         "⚡ Квест 28: Сборка магнитов\n\n"
-        "Твоя задача собрать 6 магнитов как можно быстрее. "
-        "При нажатии 'Начать выполнение' будет запущен таймер в боте. "
+        "Твоя задача собрать 6 магнитов как можно быстрее,"
+        " при нажатии “СТАРТ” будет запущен таймер в боте. "
         "Перед началом попроси коллегу записать тебя на видео так, "
-        "чтобы таймер из бота был в кадре видео.\n\n"
-        "Правила выполнения:\n"
-        "1. Все магниты должны быть собраны правильно\n"
-        "2. Видео должно четко показывать процесс сборки\n"
-        "3. Таймер из бота должен быть виден на видео",
+        "чтоб таймер из бота был в кадре видео. "
+        "Не забудь отработать движения!",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Начать выполнение", callback_data="start_quest28")]
+            [InlineKeyboardButton(text="СТАРТ", callback_data="start_quest28")]
         ])
     )
 
@@ -261,7 +258,7 @@ async def start_quest28(callback: types.CallbackQuery, state: FSMContext):
         "⏱️ Таймер запущен! Соберите 6 магнитов как можно быстрее.\n"
         "Прошедшее время: 00:00:00",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Завершить сборку", callback_data="finish_quest28")]
+            [InlineKeyboardButton(text="ФИНИШ", callback_data="finish_quest28")]
         ])
     )
 
@@ -281,7 +278,7 @@ async def start_quest28(callback: types.CallbackQuery, state: FSMContext):
 
 async def update_quest28_timer(bot, chat_id: int, message_id: int, state: FSMContext):
     reply_markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Завершить сборку", callback_data="finish_quest28")]
+        [InlineKeyboardButton(text="ФИНИШ", callback_data="finish_quest28")]
     ])
 
     last_time_str = None  # храним последнее отображенное время

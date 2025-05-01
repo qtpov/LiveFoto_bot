@@ -72,11 +72,16 @@ class QuestState(StatesGroup):
     waiting_for_reject_comment = State()
 
     waiting_for_sale_result_24 = State()
+    waiting_for_sale_description_24 = State()
+    waiting_for_client_response_24  = State()
+    waiting_for_continue_after_fail_24 = State()
     waiting_for_fail_reason_24 = State()
     waiting_for_continue_24 = State()
     waiting_for_custom_reason_24 = State()
+    waiting_for_receipt_photo_24 = State()
 
     # Состояния для квеста 26
+    waiting_for_feedback_answer = State()
     waiting_for_answer_26_1 = State()
     waiting_for_answer_26_2 = State()
     waiting_for_answer_26_3 = State()
