@@ -1361,10 +1361,11 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
                     "responses": {
                         0: {"client": "Здравствуйте, даже не знаю...", "feedback": ""},
                         1: {"client": "нет, спасибо",
-                            "feedback": 'Не стоит задавать вопрос, на который можно ответить "да" или "нет". Если клиент заведомом не заинтересован в продукте, то ответ 100% будет "нет".'},
+                            "feedback": 'Не стоит задавать вопрос, на который можно ответить "да" или "нет". Если клиент заведомо не заинтересован в продукте, то ответ 100% будет "нет".'},
                         2: {"client": "нет, спасибо",
-                            "feedback": 'Не стоит задавать вопрос, на который можно ответить "да" или "нет". Если клиент заведомом не заинтересован в продукте, то ответ 100% будет "нет".'},
-                        3: {"client": "до свидания", "feedback": "Нужно быть общительнее, развивай коммуникативные навыки, чтобы уметь сразу зацепить клиента диалогом."}
+                            "feedback": 'Не стоит задавать вопрос, на который можно ответить "да" или "нет". Если клиент заведомо не заинтересован в продукте, то ответ 100% будет "нет".'},
+                        3: {"client": "до свидания",
+                            "feedback": "Нужно быть общительнее, развивай коммуникативные навыки, чтобы уметь сразу зацепить клиента диалогом."}
                     },
                     "correct": 0
                 },
@@ -1379,19 +1380,23 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
                     ],
                     "responses": {
                         0: {"client": "Елена, а сына Артём", "feedback": ""},
-                        1: {"client": "", "feedback": "Никогда не сдавайся на первом отказе! Ты только что упустил возможность сделать классные кадры."},
-                        2: {"client": "Не надо, спасибо", "feedback": "Заинтересованность клиента угасла в моменте, жаль, кадры сделать не получится."},
-                        3: {"client": "Ой, нет, спасибо, мы не планировали покупать магниты", "feedback": "Теперь клиент думает только о том, что ему придётся что-то купить, а это не самое приятная мысль."}
+                        1: {"client": "",
+                            "feedback": "Никогда не сдавайся на первом отказе! Ты только что упустил возможность сделать классные кадры."},
+                        2: {"client": "Не надо, спасибо",
+                            "feedback": "Заинтересованность клиента угасла в моменте, жаль, кадры сделать не получится."},
+                        3: {"client": "Ой, нет, спасибо, мы не планировали покупать магниты",
+                            "feedback": "Теперь клиент думает только о том, что ему придётся что-то купить, а это не самое приятная мысль."}
                     },
                     "correct": 0
                 },
                 {
                     "photographer": "Артём, скорее обними маму крепко и покажи как ты её любишь! Готово, потрясающий кадр!",
                     "client": "Елена, а сына Артём",
-                    "options":['далее'],
+                    "options": ['далее'],
                     "responses": {
-                        0: {"client": "", "feedback": "У тебя получились чудесные семейные кадры в солнечных лучах. Мама растрогана от чувств после крепких объятий и поцелуя сына. И именно ты создал для них эти эмоции, а так же сделала шикарные кадры момента - от покупки таких фотографий Елене будет сложно устоять."},
-
+                        0: {"client": "",
+                            "feedback": "У тебя получились чудесные семейные кадры в солнечных лучах. Мама растрогана от чувств после крепких объятий и поцелуя сына. И именно ты создал для них эти эмоции, а так же сделал шикарные кадры момента - от покупки таких фотографий Елене будет сложно устоять.",
+                            "final": True},
                     },
                     "correct": 0
                 }
@@ -1411,10 +1416,15 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
                         "Здравствуйте, фотографироваться будем?"
                     ],
                     "responses": {
-                        0: {"client": "Здравствуйте, у нас уже много дочку фотографировали, а мы не любим фотографироваться...", "feedback": ""},
-                        1: {"client": "Не надо её фотографировать, у неё много фотографий", "feedback": "Не стоит предлагать фотографировать только ребенка, когда есть вся семья."},
-                        2: {"client": "Сергей \n 📷Фотограф: Давайте вас сфотографирую? \n 👤 Клиент: Нет, спасибо ", "feedback": "Не стоит задавать вопрос, на который можно ответить 'да' или 'нет'."},
-                        3: {"client": "Нет", "feedback": "Нужно быть общительнее, развивай коммуникативные навыки, чтобы уметь сразу зацепить клиента диалогом."}
+                        0: {
+                            "client": "Здравствуйте, у нас уже много дочку фотографировали, а мы не любим фотографироваться...",
+                            "feedback": ""},
+                        1: {"client": "Не надо её фотографировать, у неё много фотографий",
+                            "feedback": "Не стоит предлагать фотографировать только ребенка, когда есть вся семья."},
+                        2: {"client": "Сергей \n 📷Фотограф: Давайте вас сфотографирую? \n 👤 Клиент: Нет, спасибо ",
+                            "feedback": "Не стоит задавать вопрос, на который можно ответить 'да' или 'нет'."},
+                        3: {"client": "Нет",
+                            "feedback": "Нужно быть общительнее, развивай коммуникативные навыки, чтобы уметь сразу зацепить клиента диалогом."}
                     },
                     "correct": 0
                 },
@@ -1429,9 +1439,12 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
                     ],
                     "responses": {
                         0: {"client": "Мария, Сергей, а дочку Вика", "feedback": ""},
-                        1: {"client": "", "feedback": "Никогда не сдавайся на первом отказе! Ты только что упустил возможность сделать классные кадры."},
-                        2: {"client": "Не надо, спасибо, у неё куча фотографий", "feedback": "Заинтересованность клиента угасла в моменте, жаль, кадры сделать не получится."},
-                        3: {"client": "Не хотим, спасибо", "feedback": "Теперь клиент думает только о том, что вам нужно выполнить план, а не о ценности фотографии."}
+                        1: {"client": "",
+                            "feedback": "Никогда не сдавайся на первом отказе! Ты только что упустил возможность сделать классные кадры."},
+                        2: {"client": "Не надо, спасибо, у неё куча фотографий",
+                            "feedback": "Заинтересованность клиента угасла в моменте, жаль, кадры сделать не получится."},
+                        3: {"client": "Не хотим, спасибо",
+                            "feedback": "Теперь клиент думает только о том, что вам нужно выполнить план, а не о ценности фотографии."}
                     },
                     "correct": 0
                 },
@@ -1442,7 +1455,9 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
                         "Сергей, берите на руки Викторию, Мария, а вы встаньте слегка за могучую спину Сергея и за руку возьмите Викторию, как же вы шикарно смотритесь все вместе! Кадр готов, молодцы!"
                     ],
                     "responses": {
-                        0: {"client": "", "feedback": "У тебя получились классные семейные кадры, глядя на которые мама увидит себя в психологически комфортном месте - за спиной своего супруга, а папа держит на руках любимую дочку. Обязательно попробуй поставить семью в разные позы и не забудь сделать им отдельные портреты, тем самым увеличив раскадровку и заинтересовав семью в процессе фотосъёмки."}
+                        0: {"client": "",
+                            "feedback": "У тебя получились классные семейные кадры, глядя на которые мама увидит себя в психологически комфортном месте - за спиной своего супруга, а папа держит на руках любимую дочку. Обязательно попробуй поставить семью в разные позы и не забудь сделать им отдельные портреты, тем самым увеличив раскадровку и заинтересовав семью в процессе фотосъёмки.",
+                            "final": True}
                     },
                     "correct": 0
                 }
@@ -1463,9 +1478,13 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
                     ],
                     "responses": {
                         0: {"client": "Привет! \nЯ, Алина.\n А я, Вика", "feedback": ""},
-                        1: {"client": "Нет.", "feedback": "Не стоит задавать вопрос, на который можно ответить 'да' или 'нет'."},
-                        2: {"client": "Привет! Я, Алина. А я, Вика \n 📷Фотограф: Хотите сфотографироваться? \n 👤 Клиент: Нет, спасибо ", "feedback": 'Не стоит задавать вопрос, на который можно ответить "да" или "нет". Если клиент заведомом не заинтересован в продукте, то ответ 100% будет "нет".'},
-                        3: {"client": "Не надо, мы стесняемся", "feedback": "Не стоит задавать вопрос, на который можно ответить 'да' или 'нет'."}
+                        1: {"client": "Нет.",
+                            "feedback": "Не стоит задавать вопрос, на который можно ответить 'да' или 'нет'."},
+                        2: {
+                            "client": "Привет! Я, Алина. А я, Вика \n 📷Фотограф: Хотите сфотографироваться? \n 👤 Клиент: Нет, спасибо ",
+                            "feedback": 'Не стоит задавать вопрос, на который можно ответить "да" или "нет". Если клиент заведомо не заинтересован в продукте, то ответ 100% будет "нет".'},
+                        3: {"client": "Не надо, мы стесняемся",
+                            "feedback": "Не стоит задавать вопрос, на который можно ответить 'да' или 'нет'."}
                     },
                     "correct": 0
                 },
@@ -1478,7 +1497,8 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
                     ],
                     "responses": {
                         0: {"client": "Даааааа!", "feedback": ""},
-                        1: {"client": "Нет, не хотим", "feedback": "Не стоит задавать вопрос, на который можно ответить 'да' или 'нет'."}
+                        1: {"client": "Нет, не хотим",
+                            "feedback": "Не стоит задавать вопрос, на который можно ответить 'да' или 'нет'."}
                     },
                     "correct": 0
                 },
@@ -1491,7 +1511,8 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
                     ],
                     "responses": {
                         0: {"client": "Да, там мама и папа. Вон, в джакузи", "feedback": ""},
-                        1: {"client": "Не надо, мы стесняемся", "feedback": "Девочки такие девочки. Стоит поискать к ним подход."},
+                        1: {"client": "Не надо, мы стесняемся",
+                            "feedback": "Девочки такие девочки. Стоит поискать к ним подход."},
 
                     },
                     "correct": 0
@@ -1517,10 +1538,16 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
                         "Я их уже пофоткал. Хорошего вам отдыха!"
                     ],
                     "responses": {
-                        0: {"client": "\n 📷Фотограф: Вы чудесная семья! А теперь, давайте устроим вам настоящую лав-стори. Когда вы в последний раз фотографировались вместе? Поцелуйте даму своего сердца в щечку. Милота! А теперь приобнимитесь, ну супер. Смотрите, какие потрясающие у вас снимки. Ну я же говорил, что я волшебник. А теперь идемте под зонтик, там получаются индивидуальные фотографии как с обложки 'Вог'...", "feedback": 'Далее фотограф работает с каждым членом семьи индивидуально. Таким образом, создается раскадровка семьи'},
-                        1: {"client": "Да мы уже нафоткались, не надо больше", "feedback": "У девчонок уже есть фотографий, а самые ценные - семейные фотографии сделать не получилось, а ведь платить за всё будут родители, а захотят ли платить за фотографий, на которых их нет?"},
-                        2: {"client": "Не стоит, спасибо", "feedback": "Заинтересованность клиента угасла в моменте, жаль, кадры сделать не получится."},
-                        3: {"client": "", "feedback": "У девчонок уже есть фотографий, а самые ценные - семейные фотографии сделать не получилось, а ведь платить за всё будут родители, а захотят ли платить за фотографий, на которых их нет?"}
+                        0: {
+                            "client": "\n 📷Фотограф: Вы чудесная семья! А теперь, давайте устроим вам настоящую лав-стори. Когда вы в последний раз фотографировались вместе? Поцелуйте даму своего сердца в щечку. Милота! А теперь приобнимитесь, ну супер. Смотрите, какие потрясающие у вас снимки. Ну я же говорил, что я волшебник. А теперь идемте под зонтик, там получаются индивидуальные фотографии как с обложки 'Вог'...",
+                            "feedback": 'Далее фотограф работает с каждым членом семьи индивидуально. Таким образом, создается раскадровка семьи',
+                            "final": True},
+                        1: {"client": "Да мы уже нафоткались, не надо больше",
+                            "feedback": "У девчонок уже есть фотографий, а самые ценные - семейные фотографии сделать не получилось, а ведь платить за всё будут родители, а захотят ли платить за фотографий, на которых их нет?"},
+                        2: {"client": "Не стоит, спасибо",
+                            "feedback": "Заинтересованность клиента угасла в моменте, жаль, кадры сделать не получится."},
+                        3: {"client": "",
+                            "feedback": "У девчонок уже есть фотографий, а самые ценные - семейные фотографии сделать не получилось, а ведь платить за всё будут родители, а захотят ли платить за фотографий, на которых их нет?"}
                     },
                     "correct": 0
                 }
@@ -1549,24 +1576,109 @@ async def quest_16(callback: types.CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
-
-
-@router.callback_query(F.data == "start_quest16")
-async def start_quest16(callback: types.CallbackQuery, state: FSMContext):
-    # Удаляем предыдущие сообщения
-    user_data = await state.get_data()
+@router.callback_query(F.data == "next_quest16_dialog")
+async def next_quest16_dialog(callback: types.CallbackQuery, state: FSMContext):
     try:
-        if "question_message_id" in user_data:
-            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+        await callback.message.delete()
     except Exception as e:
-        print(f"Ошибка при удалении сообщений: {e}")
+        print(f"Ошибка при удалении сообщения: {e}")
 
-    # Начинаем первый сценарий
+    # Устанавливаем current_dialog=0 для перехода к первому диалогу
+    await state.update_data(current_dialog=0)
+    await show_quest16_scenario(callback, state)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("qw16_"))
+async def handle_quest16_answer(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения: {e}")
+
+    user_data = await state.get_data()
+    current_scenario = user_data.get("current_scenario", 1)
+    current_dialog = user_data.get("current_dialog", 0)
+    dialog = user_data.get("current_dialog_data", {})
+    scenarios = user_data.get("scenarios", {})
+
+    selected_answer = int(callback.data.split("_")[1])
+    response = dialog["responses"].get(selected_answer, {})
+
+    is_correct = selected_answer == dialog["correct"]
+
+    if not is_correct:
+        # Обработка неверного ответа
+        messages = []
+        if response.get("client"):
+            messages.append(f"👤 Клиент: {response['client']}")
+        if response.get("feedback"):
+            messages.append(f"📌 Совет: {response['feedback']}")
+
+        await callback.message.answer(
+            "\n\n".join(messages),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text="🔄 Попробовать снова",
+                    callback_data=f"retry_quest16_{current_scenario}_{current_dialog}"
+                )]
+            ])
+        )
+        await callback.answer("❌ Неверный ответ")
+        return
+
+    # Обработка верного ответа
+    correct_answers = user_data.get("correct_answers", 0) + 1
+
+    if response.get("final", False):
+        # Для финального ответа показываем фидбек с кнопкой "Далее"
+        await callback.message.answer(
+            f"👤 Клиент: {response.get('client', '')}\n\n"
+            f"📌 {response['feedback']}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text="Далее →",
+                    callback_data=f"quest16_next_scenario_{current_scenario + 1}"
+                )]
+            ])
+        )
+        await state.update_data(correct_answers=correct_answers)
+    else:
+        # Для обычного ответа переходим к следующему диалогу
+        await state.update_data(
+            correct_answers=correct_answers,
+            current_dialog=current_dialog + 1
+        )
+        await show_quest16_scenario(callback, state)
+
+    await callback.answer("✅ Верный ответ!")
+
+@router.callback_query(F.data.startswith("quest16_next_scenario_"))
+async def next_scenario_handler(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения: {e}")
+
+    next_scenario = int(callback.data.split("_")[-1])
+    await state.update_data(
+        current_scenario=next_scenario,
+        current_dialog=-1  # Для показа описания сценария
+    )
     await show_quest16_scenario(callback, state)
     await callback.answer()
 
 
 async def show_quest16_scenario(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+
+    # Удаляем предыдущие сообщения
+    try:
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения: {e}")
+
     user_data = await state.get_data()
     current_scenario = user_data.get("current_scenario", 1)
     current_dialog = user_data.get("current_dialog", -1)
@@ -1605,62 +1717,38 @@ async def show_quest16_scenario(callback: types.CallbackQuery, state: FSMContext
     dialog = scenario["dialogs"][current_dialog]
     response = dialog["responses"].get(0, {})
 
-    # Для диалогов с единственным вариантом "далее"
-    if len(dialog["options"]) == 1 and dialog["options"][0].lower() == "далее":
-        message_text = f"📌 Ситуация: {scenario['name']}\n\n"
-        if dialog["client"]:
-            message_text += f"👤 Клиент: {dialog['client']}\n\n"
-        message_text += f"📷 Фотограф: {dialog['photographer']}"
-
-        # Используем кнопку "Далее" вместо цифры 1
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Далее", callback_data=f"qw16_0")]
-        ])
-
-        message = await callback.message.answer(
-            message_text,
-            reply_markup=keyboard
-        )
-
-        # Добавляем финальное сообщение, если оно есть
-        if "final_feedback" in dialog:
-            await callback.message.answer(f"🎉 {dialog['final_feedback']}")
-
-        await state.update_data(
-            question_message_id=message.message_id,
-            current_dialog_data=dialog
-        )
-        return
-
-    # Оригинальная логика для всех остальных диалогов
-    if len(dialog["responses"]) == 1:
-        message_text = f" {response['feedback']}\n\n"
-    else:
-        message_text = ""
-
-    message_text += f"📌 Ситуация: {scenario['name']}\n\n"
+    # Формируем текст сообщения
+    message_text = f"📌 Ситуация: {scenario['name']}\n\n"
     if dialog["client"]:
         message_text += f"👤 Клиент: {dialog['client']}\n\n"
     message_text += f"📷 Фотограф: {dialog['photographer']}\n\n"
-    message_text += "Варианты ответов:\n"
 
-    for i, option in enumerate(dialog["options"], 1):
-        message_text += f"\n{i}. {option}"
+    # Для диалогов с единственным вариантом "далее"
+    if len(dialog["options"]) == 1 and dialog["options"][0].lower() == "далее":
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Далее", callback_data=f"qw16_0")]
+        ])
+    else:
+        # Добавляем варианты ответов
+        message_text += "Варианты ответов:\n"
+        for i, option in enumerate(dialog["options"], 1):
+            message_text += f"\n{i}. {option}"
 
-    # Создаем клавиатуру с цифрами (по 2 кнопки в строке)
-    keyboard = []
-    options = dialog["options"]
-    for i in range(0, len(options), 2):
-        row = []
-        for j in range(2):
-            if i + j < len(options):
-                row.append(InlineKeyboardButton(text=str(i + j + 1), callback_data=f"qw16_{i + j}"))
-        if row:
-            keyboard.append(row)
+        # Создаем клавиатуру с цифрами (по 2 кнопки в строке)
+        keyboard_buttons = []
+        options = dialog["options"]
+        for i in range(0, len(options), 2):
+            row = []
+            for j in range(2):
+                if i + j < len(options):
+                    row.append(InlineKeyboardButton(text=str(i + j + 1), callback_data=f"qw16_{i + j}"))
+            if row:
+                keyboard_buttons.append(row)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
     message = await callback.message.answer(
         message_text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+        reply_markup=keyboard
     )
 
     await state.update_data(
@@ -1668,20 +1756,7 @@ async def show_quest16_scenario(callback: types.CallbackQuery, state: FSMContext
         current_dialog_data=dialog
     )
 
-@router.callback_query(F.data == "next_quest16_dialog")
-async def next_quest16_dialog(callback: types.CallbackQuery, state: FSMContext):
-    try:
-        await callback.message.delete()
-    except Exception as e:
-        print(f"Ошибка при удалении сообщения: {e}")
 
-    # Устанавливаем current_dialog=0 для перехода к первому диалогу
-    await state.update_data(current_dialog=0)
-    await show_quest16_scenario(callback, state)
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("qw16_"))
 async def handle_quest16_answer(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.delete()
     user_data = await state.get_data()
@@ -1713,56 +1788,36 @@ async def handle_quest16_answer(callback: types.CallbackQuery, state: FSMContext
                                       callback_data=f"retry_quest16_{current_scenario}_{current_dialog}")]
             ])
 
-            await callback.message.answer(
-                "\n\n".join(messages),
-                reply_markup=reply_markup
-            )
+        await callback.message.answer(
+            "\n\n".join(messages),
+            reply_markup=reply_markup
+        )
 
     if is_correct:
         correct_answers += 1
-        await callback.answer("✅ Верный ответ!")
 
-        # Переходим к следующему диалогу или сценарию
-        scenario = scenarios[current_scenario]
-        if current_dialog + 1 < len(scenario["dialogs"]):
+        # Проверяем, является ли этот ответ финальным для сценария
+        if response.get("final", False):
+            # Отправляем финальное сообщение
+            await callback.message.answer(response["feedback"])
+
+            # Переходим к следующему сценарию
+            await state.update_data(
+                correct_answers=correct_answers,
+                current_scenario=current_scenario + 1,
+                current_dialog=-1  # Для показа описания нового сценария
+            )
+        else:
+            # Переходим к следующему диалогу
             await state.update_data(
                 correct_answers=correct_answers,
                 current_dialog=current_dialog + 1
             )
-        else:
-            await state.update_data(
-                correct_answers=correct_answers,
-                current_scenario=current_scenario + 1,
-                current_dialog=0
-            )
 
+        await callback.answer("✅ Верный ответ!")
         await show_quest16_scenario(callback, state)
     else:
         await callback.answer("❌ Неверный ответ")
-
-
-@router.callback_query(F.data.startswith("retry_quest16_"))
-async def retry_quest16_dialog(callback: types.CallbackQuery, state: FSMContext):
-    # Парсим параметры из callback_data
-    _, _, scenario_num, dialog_num = callback.data.split("_")
-    current_scenario = int(scenario_num)
-    current_dialog = int(dialog_num)
-
-    # Устанавливаем текущий диалог для повторного прохождения
-    await state.update_data(
-        current_scenario=current_scenario,
-        current_dialog=current_dialog
-    )
-
-    # Удаляем сообщение с ошибкой
-    try:
-        await callback.message.delete()
-    except Exception as e:
-        print(f"Ошибка при удалении сообщения: {e}")
-
-    # Показываем диалог снова
-    await show_quest16_scenario(callback, state)
-    await callback.answer()
 
 
 async def finish_quest16(callback: types.CallbackQuery, state: FSMContext):
@@ -1792,26 +1847,24 @@ async def finish_quest16(callback: types.CallbackQuery, state: FSMContext):
         else:
             user_result.state = "выполнен"
             user_result.result = correct_answers
+
         if correct_answers == total_questions:
             achievement_given = await give_achievement(callback.from_user.id, 16, session)
             if achievement_given:
-                # Отправляем результат пользователю
-                message = await callback.message.answer(
-                    f"✅ Квест 16 завершен!\n"
-                    f"Правильных ответов: {correct_answers} из {total_questions}\n"
-                    f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!",
-                    reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 16)
-                )
+                message_text = (f"✅ Квест 16 завершен!\n"
+                                f"Правильных ответов: {correct_answers} из {total_questions}\n"
+                                f"Поздравляем! Вы получили ачивку за выполнение квеста на 100%!")
             else:
-                message = await callback.message.answer(
-                    f"✅ Квест 16 завершен!\n"
-                    f"Правильных ответов: {correct_answers} из {total_questions}",
-                    reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 16)
-                )
+                message_text = (f"✅ Квест 16 завершен!\n"
+                                f"Правильных ответов: {correct_answers} из {total_questions}")
         else:
-            message_text = f"Есть ошибки, попробуй заново\nВерных ответов: {correct_count} из {total_questions}"
-        await session.commit()
+            message_text = f"Есть ошибки, попробуй заново\nВерных ответов: {correct_answers} из {total_questions}"
 
+        message = await callback.message.answer(
+            message_text,
+            reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 16)
+        )
+        await session.commit()
 
     await state.update_data(question_message_id=message.message_id)
     await state.clear()
@@ -4271,7 +4324,6 @@ async def handle_sale_description_24(message: types.Message, state: FSMContext):
     else:
         await finish_quest24(message, state)
 
-    await message.delete()
 
 
 @router.callback_query(F.data == "sale_fail_24", QuestState.waiting_for_sale_result_24)
@@ -4469,6 +4521,27 @@ async def handle_custom_reason_24(message: types.Message, state: FSMContext):
     else:
         await finish_quest24(message, state)
 
+
+@router.callback_query(F.data == "retry_quest_24")
+async def retry_quest_24(callback: types.CallbackQuery):
+    # Проверяем, можно ли переделывать квест
+    async with SessionLocal() as session:
+        user_result = await session.execute(
+            select(UserResult).filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 24
+            )
+        )
+        user_result = user_result.scalars().first()
+
+        if user_result and user_result.result == 5:  # Если квест выполнен полностью
+            await quest_24(callback)
+        else:
+            await callback.answer(
+                "Этот квест нельзя переделать, так как он не был выполнен полностью",
+                show_alert=True
+            )
+
 async def finish_quest24(update: Union[types.CallbackQuery, types.Message], state: FSMContext):
     if isinstance(update, types.CallbackQuery):
         message = update.message
@@ -4477,8 +4550,32 @@ async def finish_quest24(update: Union[types.CallbackQuery, types.Message], stat
         message = update
         user = message.from_user
 
-    # Удаляем временные сообщения
-    await delete_last_messages(state, message.chat.id)
+    # Удаляем все предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        # Удаляем основное сообщение с вопросом
+        if "question_message_id" in user_data:
+            try:
+                await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+            except:
+                pass
+
+        # Удаляем все сообщения из списка для удаления
+        messages_to_delete = user_data.get("last_messages_to_delete", [])
+        for msg_id in messages_to_delete:
+            try:
+                await message.bot.delete_message(message.chat.id, msg_id)
+            except:
+                pass
+
+        # Удаляем текущее сообщение, если это Message (не CallbackQuery)
+        if isinstance(update, types.Message):
+            try:
+                await message.delete()
+            except:
+                pass
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
 
     user_data = await state.get_data()
     sales_data = user_data.get("sales_data", [])
@@ -4498,14 +4595,15 @@ async def finish_quest24(update: Union[types.CallbackQuery, types.Message], stat
             user_result = UserResult(
                 user_id=user.id,
                 quest_id=24,
-                state="выполнен" if success_count == 5 else "не выполнен",
+                state="выполнен",
                 attempt=1,
                 result=success_count
             )
             session.add(user_result)
         else:
-            user_result.state = "выполнен" if success_count == 5 else "не выполнен"
+            user_result.state = "выполнен"
             user_result.result = success_count
+            user_result.attempt += 1
 
         if success_count == 5:
             achievement_given = await give_achievement(user.id, 24, session)
@@ -4515,17 +4613,26 @@ async def finish_quest24(update: Union[types.CallbackQuery, types.Message], stat
                 f"{'Поздравляем! Вы получили ачивку!' if achievement_given else ''}"
             )
         else:
-            message_text = f"Квест 24 завершен.\nУспешных продаж: {success_count} из 5"
+            message_text = (
+                f"Квест 24 завершен.\n"
+                f"Успешных продаж: {success_count} из 5\n"
+                f"Вы не выполнили квест полностью и не можете его переделать."
+            )
 
         await session.commit()
 
-    # Отправляем результат
-    await message.answer(
+    # Отправляем финальное сообщение и очищаем состояние
+    sent_message = await message.answer(
         message_text,
-        reply_markup=get_quest_finish_keyboard(success_count, 5, 24)
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Далее", callback_data="next_quest_24")]
+        ])
     )
 
+    # Добавляем финальное сообщение в список для удаления при следующем запуске
+    await save_message_to_delete(state, sent_message.message_id)
     await state.clear()
+
 
 # Квест 25 - Сила отказов
 
@@ -4629,7 +4736,7 @@ async def show_quest25_scenario(callback: types.CallbackQuery, state: FSMContext
         # Создаем клавиатуру с номерами вариантов (1, 2, 3)
         keyboard = []
         options_count = len(scenario["text"].split("\n")) - 3  # Подсчитываем варианты из текста
-        for i in range(1, options_count + 1):
+        for i in range(1, options_count):
             keyboard.append([InlineKeyboardButton(text=str(i), callback_data=f"qw25_{i-1}")])
 
         try:
@@ -4663,25 +4770,15 @@ async def show_quest25_scenario(callback: types.CallbackQuery, state: FSMContext
 async def handle_quest25_answer(callback: types.CallbackQuery, state: FSMContext):
     try:
         user_data = await state.get_data()
-        scenario = user_data.get("current_scenario_data", {})
         correct_answers = user_data.get("correct_answers", 0)
         current_scenario = user_data.get("current_scenario", 1)
 
-        selected_answer = int(callback.data.split("_")[1])
-        is_correct = selected_answer == scenario["correct"]
-
-        # Формируем текст с выделением ответов
-        options_text = ""
-        options = scenario["text"].split("\n")[3:]  # Берем только варианты ответов
-        for i, option in enumerate(options):
-            prefix = "✅ " if i == scenario["correct"] else "❌ " if i == selected_answer else "   "
-            options_text += f"{prefix}{option}\n"
+        # Любой выбранный ответ считается верным
+        selected_answer = int(callback.data.split("_")[1])  # Можно оставить, если нужно значение
 
         feedback_text = (
-            f"{'✅ Верно!' if is_correct else '❌ Неверно'}\n\n"
-            f"{scenario['feedback']}\n\n"
-            f"Ваши ответы:\n"
-            f"{options_text}"
+            f"✅ Верно!\n"
+            f"Двигаемся дальше"
         )
 
         try:
@@ -4699,10 +4796,10 @@ async def handle_quest25_answer(callback: types.CallbackQuery, state: FSMContext
                 ])
             )
 
-        # Обновляем данные
+        # Обновляем данные (всегда увеличиваем счетчики)
         await state.update_data(
-            current_scenario=current_scenario + (1 if is_correct else 0),
-            correct_answers=correct_answers + (1 if is_correct else 0)
+            current_scenario=current_scenario + 1,  # Переход к следующему вопросу
+            correct_answers=correct_answers + 1      # +1 к правильным ответам
         )
 
         await callback.answer()
@@ -4794,114 +4891,65 @@ async def quest_26(callback: types.CallbackQuery, state: FSMContext):
     # Вопросы фидбека
     questions = [
         {
-            "text": "1. Оцени насколько тебе были понятны органы управления фототехники (1 - совсем не понял, 5 - все отлично понятно)",
-            "type": "rating",
-            "key": "tech_understanding"
-        },
-        {
-            "text": "2. Как ты оцениваешь свои навыки позирования после сегодняшнего дня? (1 - совсем не получается, 5 - отлично получается)",
-            "type": "rating",
-            "key": "posing_skills"
-        },
-        {
-            "text": "3. Оцени свою коммуникацию с гостями сегодня (1 - было сложно общаться, 5 - общался легко и непринужденно)",
-            "type": "rating",
-            "key": "communication"
-        },
-        {
-            "text": "4. Насколько хорошо получались семейные кадры? (1 - совсем не получались, 5 - отлично получались)",
-            "type": "rating",
-            "key": "family_shots"
-        },
-        {
-            "text": "5. Оцени алгоритм печати продукции (1 - сложно и непонятно, 5 - просто и понятно)",
-            "type": "rating",
-            "key": "printing"
-        },
-        {
-            "text": "6. Как ты оцениваешь соблюдение тайминга сегодня? (1 - не успевал, 5 - все успевал)",
-            "type": "rating",
-            "key": "timing"
-        },
-        {
-            "text": "7. Оцени сложность продаж сегодня (1 - очень сложно, 5 - очень легко)",
-            "type": "rating",
-            "key": "sales"
-        },
-        {
-            "text": "8. Напиши свои впечатления о втором дне и пожелания на завтра:",
+            "text": "1. Есть ли что-то, что тебе не до конца понятно из материала по органам управления фототехники? Что именно?",
             "type": "text",
-            "key": "impressions"
+            "key": "tech_questions"
+        },
+        {
+            "text": "2. Позинг - важная и сложная вещь. Были ли у тебе трудности во время выполнения задачи? Какие именно?",
+            "type": "text",
+            "key": "posing_difficulties"
+        },
+        {
+            "text": "3. Расскажи нам о том, как далась коммуникация с нашими гостями? Что понравилось/не понравилось?",
+            "type": "text",
+            "key": "communication_experience"
+        },
+        {
+            "text": "4. Семейный кадр - залог успеха. Удалось ли тебе выполнить задачу на максимум или были заминки? Какие?",
+            "type": "text",
+            "key": "family_shots_challenges"
+        },
+        {
+            "text": "5. Есть ли у тебя вопросы по алгоритму печати продукции? Какие именно?",
+            "type": "text",
+            "key": "printing_questions"
+        },
+        {
+            "text": "6. Как прошла твоя практика, смог соблюдать тайминг и конверсию? Что для тебя было самым интересным и неинтересным?",
+            "type": "text",
+            "key": "practice_experience"
+        },
+        {
+            "text": "7. Продажи - наша неотъемлемая часть. Где тебе было сложно? Почему?",
+            "type": "text",
+            "key": "sales_challenges"
+        },
+        {
+            "text": "8. Все отзывы - твой двигатель прогресса. Расскажи нам о своих впечатлениях о втором дне и пожеланиях на завтра:",
+            "type": "text",
+            "key": "impressions_feedback"
         }
     ]
 
     # Отправляем первый вопрос
-    current_question = questions[0]
-    if current_question["type"] == "rating":
-        message = await callback.message.answer(
-            current_question["text"],
-            reply_markup=create_rating_keyboard()
-        )
-    else:
-        message = await callback.message.answer(
-            current_question["text"],
-            reply_markup=None
-        )
+    message = await callback.message.answer(
+        questions[0]["text"],
+        reply_markup=None
+    )
 
     await state.update_data(
         question_message_id=message.message_id,
         questions=questions,
         current_question=0,
-        answers={}
+        answers={},
+        last_messages_to_delete=[message.message_id]  # Список для хранения ID сообщений для удаления
     )
     await state.set_state(QuestState.waiting_for_feedback_answer)
     await callback.answer()
 
 
-# Обработчик рейтинговых ответов
-@router.callback_query(F.data.startswith("rating_"), QuestState.waiting_for_feedback_answer)
-async def handle_rating_answer(callback: types.CallbackQuery, state: FSMContext):
-    rating = int(callback.data.split("_")[1])
-    user_data = await state.get_data()
-    questions = user_data.get("questions", [])
-    current_idx = user_data.get("current_question", 0)
-    answers = user_data.get("answers", {})
 
-    # Сохраняем ответ
-    current_question = questions[current_idx]
-    answers[current_question["key"]] = rating
-
-    # Переходим к следующему вопросу
-    next_idx = current_idx + 1
-    if next_idx < len(questions):
-        next_question = questions[next_idx]
-
-        if next_question["type"] == "rating":
-            message = await callback.message.answer(
-                next_question["text"],
-                reply_markup=create_rating_keyboard()
-            )
-        else:
-            message = await callback.message.answer(
-                next_question["text"],
-                reply_markup=None
-            )
-
-        await state.update_data(
-            question_message_id=message.message_id,
-            current_question=next_idx,
-            answers=answers
-        )
-    else:
-        # Все вопросы пройдены
-        await state.update_data(answers=answers)
-        await finish_quest26(callback.message, state)
-
-    try:
-        await callback.message.delete()
-    except:
-        pass
-    await callback.answer()
 
 
 # Обработчик текстовых ответов
@@ -4915,41 +4963,41 @@ async def handle_text_answer(message: types.Message, state: FSMContext):
     questions = user_data.get("questions", [])
     current_idx = user_data.get("current_question", 0)
     answers = user_data.get("answers", {})
+    last_messages = user_data.get("last_messages_to_delete", [])
 
     # Сохраняем ответ
     current_question = questions[current_idx]
     answers[current_question["key"]] = message.text
+
+    # Удаляем предыдущие сообщения (вопрос и ответ пользователя)
+    try:
+        for msg_id in last_messages:
+            await message.bot.delete_message(message.chat.id, msg_id)
+        await message.delete()
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
 
     # Переходим к следующему вопросу
     next_idx = current_idx + 1
     if next_idx < len(questions):
         next_question = questions[next_idx]
 
-        if next_question["type"] == "rating":
-            msg = await message.answer(
-                next_question["text"],
-                reply_markup=create_rating_keyboard()
-            )
-        else:
-            msg = await message.answer(
-                next_question["text"],
-                reply_markup=None
-            )
+        msg = await message.answer(
+            next_question["text"],
+            reply_markup=None
+        )
 
         await state.update_data(
             question_message_id=msg.message_id,
             current_question=next_idx,
-            answers=answers
+            answers=answers,
+            last_messages_to_delete=[msg.message_id]  # Сохраняем ID нового сообщения для удаления
         )
     else:
         # Все вопросы пройдены
         await state.update_data(answers=answers)
         await finish_quest26(message, state)
 
-    try:
-        await message.delete()
-    except:
-        pass
 
 
 async def finish_quest26(message: types.Message, state: FSMContext):

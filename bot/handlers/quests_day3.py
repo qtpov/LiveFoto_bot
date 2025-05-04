@@ -1299,19 +1299,24 @@ async def quest_32(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(QuestState.waiting_for_answer)
     await callback.answer()
 
-@ router.callback_query(F.data == "start_game_32", QuestState.waiting_for_answer)
+@router.callback_query(F.data == "start_game_32", QuestState.waiting_for_answer)
 async def start_game_32(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except:
+        pass
 
     scenarios = [
         {
-            "text": "Ситуация 1: коллега показывает в сторону семьи, которая стоит в очереди на аттракцион, он кладет "
-                    "руку в карман, достает купюру 5000 руб. и предлагает разделить найденные деньги, которые выпали у семьи.",
-            "options": [
-                "напомнить коллеге о ценностях компании",
-                "проконтролировать, чтоб коллега вернул деньги",
-                "разделить деньги с командой"
-            ],
+            "text": (
+                "Ситуация 1: коллега показывает в сторону семьи, которая стоит в очереди на аттракцион, он кладет "
+                "руку в карман, достает купюру 5000 руб. и предлагает разделить найденные деньги, которые выпали у семьи.\n\n"
+                "Варианты ответов:\n"
+                "1. Напомнить коллеге о ценностях компании\n"
+                "2. Проконтролировать, чтоб коллега вернул деньги\n"
+                "3. Разделить деньги с командой"
+            ),
+            "options": ["1", "2", "3"],  # Только номера вариантов
             "correct": 1,  # Индекс правильного ответа (начиная с 0)
             "feedback": [
                 "Это похвально, коллега вспомнил о ценностях, но так и не вернул деньги.",
@@ -1320,11 +1325,13 @@ async def start_game_32(callback: types.CallbackQuery, state: FSMContext):
             ]
         },
         {
-            "text": "Ситуация 2: ты сидишь и выполняешь работу, подходит коллега и просит помочь выполнить задачу, которую поручили ему.",
-            "options": [
-                "1) Согласиться",
-                "2) Отказаться"
-            ],
+            "text": (
+                "Ситуация 2: ты сидишь и выполняешь работу, подходит коллега и просит помочь выполнить задачу, которую поручили ему.\n\n"
+                "Варианты ответов:\n"
+                "1. Согласиться\n"
+                "2. Отказаться"
+            ),
+            "options": ["1", "2"],
             "correct": 0,
             "feedback": [
                 "Ты хороший командный игрок!",
@@ -1332,14 +1339,16 @@ async def start_game_32(callback: types.CallbackQuery, state: FSMContext):
             ]
         },
         {
-            "text": "Ситуация 3: Два сотрудника ведут диалог:\n"
-                    "Первый: «Какие у тебя планы на ближайшие 3 месяца?»\n"
-                    "Второй: «Хочу накопить 100 000р и смогу чилить целый месяц дома, а потом снова куда-нибудь устроюсь. А у тебя?»\n"
-                    "Первый: «Я слышал про внутреннее обучение в компании и возможность карьерного роста, очень хочу попробовать. Для меня важнее закрепиться на одном месте и развиваться в интересном для меня направлении»",
-            "options": [
-                "1) Чилить",
-                "2) Расти и развиваться"
-            ],
+            "text": (
+                "Ситуация 3: Два сотрудника ведут диалог:\n"
+                "Первый: «Какие у тебя планы на ближайшие 3 месяца?»\n"
+                "Второй: «Хочу накопить 100 000р и смогу чилить целый месяц дома, а потом снова куда-нибудь устроюсь. А у тебя?»\n"
+                "Первый: «Я слышал про внутреннее обучение в компании и возможность карьерного роста, очень хочу попробовать. Для меня важнее закрепиться на одном месте и развиваться в интересном для меня направлении»\n\n"
+                "Варианты ответов:\n"
+                "1. Чилить\n"
+                "2. Расти и развиваться"
+            ),
+            "options": ["1", "2"],
             "correct": 1,
             "feedback": [
                 "Хорошего отдыха!",
@@ -1350,7 +1359,7 @@ async def start_game_32(callback: types.CallbackQuery, state: FSMContext):
 
     msg = await callback.message.answer(
         scenarios[0]["text"],
-        reply_markup=create_options_keyboard_text(scenarios[0]["options"], "quest32")
+        reply_markup=create_numbered_options_keyboard(scenarios[0]["options"], "quest32")
     )
 
     await state.update_data(
@@ -1358,8 +1367,21 @@ async def start_game_32(callback: types.CallbackQuery, state: FSMContext):
         current_scenario=0,
         message_id=msg.message_id,
         correct_answers=0,
-        is_first_attempt=True  # Флаг первого прохождения
+        is_first_attempt=True
     )
+
+def create_numbered_options_keyboard(options, prefix):
+    """Создает клавиатуру с кнопками-номерами вариантов"""
+    keyboard = []
+    row = []
+    for i, option in enumerate(options):
+        row.append(InlineKeyboardButton(text=option, callback_data=f"{prefix}_{i}"))
+        if len(row) == 2:  # По 2 кнопки в ряду
+            keyboard.append(row)
+            row = []
+    if row:  # Добавляем оставшиеся кнопки
+        keyboard.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 @router.callback_query(F.data.startswith("quest32_"), QuestState.waiting_for_answer)
