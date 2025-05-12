@@ -947,6 +947,7 @@ async def quest_30(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(QuestState.waiting_full_cycle_step)
     await callback.answer()
 
+
 @router.callback_query(F.data == "next_step_30", QuestState.waiting_full_cycle_step)
 async def next_step_30(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
@@ -954,20 +955,20 @@ async def next_step_30(callback: types.CallbackQuery, state: FSMContext):
     steps = user_data["steps"]
 
     if current_step >= len(steps):
-        # После 13-го шага (индекс 12) запрашиваем фото
-        await callback.message.edit_text(
-            'Пожалуйста, отправьте фотографии проданных работ, после отправки всех фото нажмите кнопку "Далее":',
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Далее", callback_data="finish_photos_upload")]
-            ])
+        await callback.message.delete()
+        # Создаем новое сообщение с запросом фото
+        msg = await callback.message.answer(
+            'Пожалуйста, отправьте фотографии проданных работ (необходимо отправить хотя бы одно фото):',
+            reply_markup=None
         )
+        await state.update_data(photo_request_msg_id=msg.message_id)
         await state.set_state(QuestState.waiting_sold_photos)
     else:
         await callback.message.edit_text(
             steps[current_step]["text"],
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=steps[current_step]["button"],
-                                    callback_data="next_step_30")]
+                                      callback_data="next_step_30")]
             ])
         )
         await state.update_data(current_step=current_step)
@@ -975,9 +976,10 @@ async def next_step_30(callback: types.CallbackQuery, state: FSMContext):
 
 
 @router.message(F.photo, QuestState.waiting_sold_photos)
-async def handle_sold_photos(message: types.Message, state: FSMContext):
+async def handle_sold_photos(message: types.Message, state: FSMContext, bot):
     user_data = await state.get_data()
     sold_photos = user_data.get("sold_photos", [])
+    msg_id = user_data.get("photo_request_msg_id")
 
     # Сохраняем самое качественное фото (последнее в списке)
     sold_photos.append(message.photo[-1].file_id)
@@ -985,8 +987,42 @@ async def handle_sold_photos(message: types.Message, state: FSMContext):
     await state.update_data(sold_photos=sold_photos)
     await message.delete()
 
+    # Редактируем существующее сообщение вместо создания нового
+    if msg_id:
+        try:
+            await bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=msg_id,
+                text=f'Получено {len(sold_photos)} фото. Отправьте еще или нажмите "Далее" для продолжения.',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="Далее", callback_data="finish_photos_upload")]
+                ])
+            )
+        except:
+            # Если не удалось отредактировать (например, сообщение слишком старое)
+            msg = await message.answer(
+                f'Получено {len(sold_photos)} фото. Отправьте еще или нажмите "Далее" для продолжения.',
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="Далее", callback_data="finish_photos_upload")]
+                ])
+            )
+            await state.update_data(photo_request_msg_id=msg.message_id)
+
 @router.callback_query(F.data == "finish_photos_upload", QuestState.waiting_sold_photos)
 async def finish_photos_upload(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    sold_photos = user_data.get("sold_photos", [])
+
+    if not sold_photos:
+        await callback.answer("Необходимо отправить хотя бы одно фото!", show_alert=True)
+        return
+
+    # Удаляем сообщение с запросом фото
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
     await callback.message.answer(
         "Теперь укажи, на какую сумму ты осуществил продажу:",
         reply_markup=None
@@ -1567,9 +1603,9 @@ async def quest_33(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "start_sales_quest_33", QuestState.waiting_for_answer)
 async def start_sales_quest_33(callback: types.CallbackQuery, state: FSMContext):
     builder = InlineKeyboardBuilder()
-    builder.add(InlineKeyboardButton(text="Есть первая продажа", callback_data="sale_success_33"))
-    builder.add(InlineKeyboardButton(text="Не получилось", callback_data="sale_failed_33"))
-    builder.add(InlineKeyboardButton(text="ЗАВЕРШИТЬ", callback_data="finish_sales_quest_33"))
+    builder.row(InlineKeyboardButton(text="Есть продажа", callback_data="sale_success_33"))
+    builder.row(InlineKeyboardButton(text="Не получилось", callback_data="sale_failed_33"))
+    builder.row(InlineKeyboardButton(text="ЗАВЕРШИТЬ", callback_data="finish_sales_quest_33"))
 
     await callback.message.edit_text(
         "Начните процесс продажи:\n"
@@ -1625,8 +1661,8 @@ async def handle_product_desc_33(message: types.Message, state: FSMContext):
     else:
         builder = InlineKeyboardBuilder()
         next_sale_text = f"Есть {'вторая' if successful_sales == 1 else 'третья'} продажа"
-        builder.add(InlineKeyboardButton(text=next_sale_text, callback_data="sale_success_33"))
-        builder.add(InlineKeyboardButton(text="Не получилось", callback_data="sale_failed_33"))
+        builder.row(InlineKeyboardButton(text=next_sale_text, callback_data="sale_success_33"))
+        builder.row(InlineKeyboardButton(text="Не получилось", callback_data="sale_failed_33"))
 
         await message.answer(
             f"Отлично! Теперь нужно совершить {'вторую' if successful_sales == 1 else 'третью'} продажу.",
@@ -1639,8 +1675,8 @@ async def handle_product_desc_33(message: types.Message, state: FSMContext):
 async def handle_failure_33(callback: types.CallbackQuery, state: FSMContext):
     builder = InlineKeyboardBuilder()
     # Добавляем варианты отказов из Excel
-    builder.add(InlineKeyboardButton(text="1) У меня был отказ в фото-зоне", callback_data="refusal_photo_zone_33"))
-    builder.add(InlineKeyboardButton(text="2) У меня был отказ на стенде", callback_data="refusal_stand_33"))
+    builder.row(InlineKeyboardButton(text="1) У меня был отказ в фото-зоне", callback_data="refusal_photo_zone_33"))
+    builder.row(InlineKeyboardButton(text="2) У меня был отказ на стенде", callback_data="refusal_stand_33"))
 
     await callback.message.edit_text(
         "Давай попробуем решить, почему у тебя не получилось продать. Выбери тип отказа:",

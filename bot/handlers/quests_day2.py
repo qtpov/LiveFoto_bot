@@ -742,53 +742,46 @@ async def show_next_sample_shot_14(callback: types.CallbackQuery, state: FSMCont
     user_data = await state.get_data()
     current_shot = user_data.get("current_shot", 0)
     sample_shots = user_data.get("sample_shots", [])
-    shot_message_ids = user_data.get("shot_message_ids", [])
 
-    # Удаляем предыдущее сообщение с кнопкой
-    if "shot_message_id" in user_data:
-        try:
+    # Удаляем предыдущие сообщения
+    try:
+        if "shot_message_id" in user_data:
             await callback.bot.delete_message(callback.message.chat.id, user_data["shot_message_id"])
-        except Exception as e:
-            print(f"Ошибка при удалении сообщения: {e}")
+    except:
+        pass
 
-    # Проверяем, есть ли еще кадры для показа
     if current_shot < len(sample_shots):
         shot_data = sample_shots[current_shot]
 
-        # Отправляем пример кадра с описанием
+        # Отправляем пример кадра
         sent_message = await callback.message.answer_photo(
             shot_data["file_id"],
             caption=shot_data["description"],
             parse_mode="Markdown"
         )
-        shot_message_ids.append(sent_message.message_id)
 
-        # Создаем клавиатуру (Далее или Начать съемку для последнего шага)
+        # Кнопка "Далее" для всех шагов, кроме последнего
+        keyboard = None
         if current_shot < len(sample_shots) - 1:
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="Далее →", callback_data="next_sample_shot_14")]
             ])
-            action_text = "Нажмите 'Далее' для просмотра следующего примера"
         else:
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="Начать съемку", callback_data="start_shooting_14")]
             ])
-            action_text = "После просмотра всех примеров нажмите 'Начать съемку'"
 
-        # Отправляем сообщение с кнопкой
+        # Сообщение с кнопкой
         shot_message = await callback.message.answer(
-            action_text,
+            "Нажмите 'Далее' для продолжения" if current_shot < len(sample_shots) - 1 else "Нажмите 'Начать съемку'",
             reply_markup=keyboard
         )
 
-        # Обновляем состояние
         await state.update_data(
             current_shot=current_shot + 1,
-            shot_message_ids=shot_message_ids,
             shot_message_id=shot_message.message_id
         )
     else:
-        # Все примеры показаны, можно начинать съемку
         await start_shooting_14(callback, state)
 
 
@@ -796,6 +789,26 @@ async def show_next_sample_shot_14(callback: types.CallbackQuery, state: FSMCont
 async def handle_next_sample_shot_14(callback: types.CallbackQuery, state: FSMContext):
     await show_next_sample_shot_14(callback, state)
     await callback.answer()
+
+@router.callback_query(F.data == "start_shooting_14")
+async def start_shooting_14(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "shot_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["shot_message_id"])
+    except:
+        pass
+
+    # Начинаем процесс съемки
+    await state.update_data(
+        shooting_mode=True,
+        current_zone=1,
+        total_zones=5
+    )
+    await request_shot_14(callback, state)
+    await callback.answer()
+
 
 
 @router.callback_query(F.data == "start_shooting_14")
@@ -836,9 +849,9 @@ async def request_shot_14(callback: types.CallbackQuery, state: FSMContext):
         5: "Сделайте кадр:\n Локация “автоматы”, средний план по пояс.  ребенок стоит, смотрит в камеру, в руках  джойстик или игровое оружие, на лице улыбка, лучше держать камеру на уровне ребёнка, чтоб на фоне была локация."
     }
 
-    # Отправляем напоминание о текущей зоне
+    # Отправляем задание с кнопкой "Далее"
     message = await callback.message.answer(
-        f"📷 Зона {current_zone}/{total_zones}\n"
+        f"📷 Зона {current_zone}/5\n"
         f"{zone_descriptions[current_zone]}\n\n"
         "Сфотографируйте этот кадр на экране монитора и отправьте фото."
     )
@@ -849,6 +862,18 @@ async def request_shot_14(callback: types.CallbackQuery, state: FSMContext):
     )
     await state.set_state(QuestState.waiting_for_photo_quest14)
 
+@router.callback_query(F.data == "next_zone_14")
+async def next_zone_14(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_zone = user_data.get("current_zone", 1) + 1
+
+    if current_zone <= 5:
+        await state.update_data(current_zone=current_zone)
+        await callback.message.delete()
+        await request_shot_14(callback, state)
+    else:
+        await callback.answer("Это последняя зона", show_alert=True)
+    await callback.answer()
 
 @router.message(F.photo, QuestState.waiting_for_photo_quest14)
 async def handle_photo_quest14(message: types.Message, state: FSMContext):
@@ -856,54 +881,34 @@ async def handle_photo_quest14(message: types.Message, state: FSMContext):
     user_shots = user_data.get("user_shots", [])
     current_zone = user_data.get("current_zone", 1)
 
-    # Добавляем фото в список
+    # Добавляем фото (как было)
     user_shots.append({
         "zone": current_zone,
         "file_id": message.photo[-1].file_id
     })
-
     await state.update_data(user_shots=user_shots)
 
-    # Удаляем предыдущее сообщение с заданием
-    if "question_message_id" in user_data:
-        try:
-            await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
-        except:
-            pass
+    # Удаляем сообщение с заданием
+    try:
+        await message.bot.delete_message(message.chat.id, user_data["question_message_id"])
+    except:
+        pass
 
-    # Отправляем подтверждение получения фото
-    message_text = f"✅ Фото для зоны {current_zone} получено."
-
-    if current_zone < user_data.get("total_zones", 5):
-        message_text += " Отправьте следующее фото или нажмите 'Пропустить зону' чтобы перейти к следующей зоне"
-        keyboard = quest14_skip_zone_keyboard()
+    # Теперь показываем кнопку "Далее" только после фото
+    if current_zone < 5:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Далее →", callback_data="next_zone_14")]
+        ])
+        text = f"✅ Фото для зоны {current_zone} получено. Нажмите 'Далее'"
     else:
-        message_text += " Все фото получены. Нажмите 'Завершить', чтобы отправить на модерацию."
-        keyboard = quest14_finish_shooting_keyboard()
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Завершить", callback_data="finish_quest14")]
+        ])
+        text = "✅ Все фото получены. Нажмите 'Завершить'"
 
-    question = await message.answer(
-        message_text,
-        reply_markup=keyboard
-    )
-
-    await state.update_data(question_message_id=question.message_id)
+    await message.answer(text, reply_markup=keyboard)
     await message.delete()
 
-
-@router.callback_query(F.data == "skip_zone_14")
-async def skip_zone_14(callback: types.CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    current_zone = user_data.get("current_zone", 1) + 1
-    total_zones = user_data.get("total_zones", 5)
-
-    if current_zone <= total_zones:
-        await state.update_data(current_zone=current_zone)
-        await callback.message.delete()
-        await request_shot_14(callback, state)
-    else:
-        await callback.answer("Это последняя зона, пропустить нельзя", show_alert=True)
-
-    await callback.answer()
 
 
 @router.callback_query(F.data == "finish_quest14")
@@ -1060,18 +1065,18 @@ async def quest_15(callback: types.CallbackQuery, state: FSMContext):
         parse_mode="Markdown"
     )
 
-    # Отправляем кнопку для продолжения
+    # Кнопка "Далее"
     message = await callback.message.answer(
-        "После просмотра видео нажмите 'Начать задание'",
+        "Нажмите 'Далее' для продолжения",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Начать задание", callback_data="start_quest15")]
+            [InlineKeyboardButton(text="Далее →", callback_data="start_quest15")]
         ])
     )
 
     await state.update_data(
         video_message_id=sent_message.message_id,
         question_message_id=message.message_id,
-        current_gender="boy",  # Начинаем с мальчиков
+        current_gender="boy",
         boy_photos=[],
         girl_photos=[]
     )
@@ -1094,66 +1099,39 @@ async def start_quest15(callback: types.CallbackQuery, state: FSMContext):
     await request_quest15_photo(callback, state)
     await callback.answer()
 
+
 async def request_quest15_photo(message_or_callback: types.Message | types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     current_gender = user_data.get("current_gender", "boy")
-    boy_photos = user_data.get("boy_photos", [])
-    girl_photos = user_data.get("girl_photos", [])
 
-    # Удаляем предыдущие сообщения с шаблонами и заданиями
-    if "template_message_ids" in user_data:
-        try:
-            for msg_id in user_data["template_message_ids"]:
-                await message_or_callback.bot.delete_message(
-                    message_or_callback.message.chat.id if isinstance(message_or_callback, types.CallbackQuery) else message_or_callback.chat.id,
-                    msg_id
-                )
-        except Exception as e:
-            print(f"Ошибка при удалении сообщений с шаблонами: {e}")
+    # Определяем шаблоны
+    templates = boy_templates if current_gender == "boy" else girl_templates
+    gender_text = "мальчика" if current_gender == "boy" else "девочки"
 
-    # Определяем текст задания и шаблоны
-    if current_gender == "boy":
-        remaining = 5 - len(boy_photos)
-        gender_text = "мальчика"
-        templates = boy_templates
-    else:
-        remaining = 5 - len(girl_photos)
-        gender_text = "девочки"
-        templates = girl_templates
+    # Отправляем шаблон
+    template = templates[len(user_data.get(f"{current_gender}_photos", []))]
 
-    # Отправляем шаблон для текущего пола
-    template = templates[len(boy_photos if current_gender == "boy" else girl_photos)]
-
-    # Определяем объект сообщения в зависимости от типа входящего объекта
     if isinstance(message_or_callback, types.CallbackQuery):
         message = message_or_callback.message
     else:
         message = message_or_callback
 
-    # Создаем медиагруппу с шаблоном
     media = MediaGroupBuilder()
-    media.add_photo(media=template["file_id"], caption=f"Шаблон для {gender_text}: {template['description']}")
+    media.add_photo(media=template["file_id"], caption=f"{template['description']}")
 
-    # Отправляем медиагруппу и сохраняем ID сообщений
     sent_messages = await message.answer_media_group(media=media.build())
     template_message_ids = [msg.message_id for msg in sent_messages]
 
-    message_text = (
-        f"📷 Квест 15: 1000 Поз\n\n"
-        f"Отправьте фото {gender_text} по шаблону.\n"
-        "Фото должны быть сделаны в соответствии с показанным примером."
-    )
-
-
+    # Сообщение с кнопкой "Далее"
     sent_message = await message.answer(
-        message_text
+        f"📷 Отправьте фото {gender_text} по шаблону"
     )
 
     await state.update_data(
         question_message_id=sent_message.message_id,
         current_gender=current_gender,
         current_template=template,
-        template_message_ids=template_message_ids  # Сохраняем ID сообщений с шаблонами
+        template_message_ids=template_message_ids
     )
     await state.set_state(QuestState.waiting_for_photo_quest15)
 
@@ -1208,36 +1186,26 @@ async def handle_photo_quest15(message: types.Message, state: FSMContext):
 
     await message.delete()
 
-@router.callback_query(F.data == "skip_quest15_photo")
-async def skip_quest15_photo(callback: types.CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    current_gender = user_data.get("current_gender", "boy")
-    boy_photos = user_data.get("boy_photos", [])
-    girl_photos = user_data.get("girl_photos", [])
 
-    # Если для текущего пола нет фото, не позволяем пропустить
-    if (current_gender == "boy" and len(boy_photos) == 0) or (current_gender == "girl" and len(girl_photos) == 0):
-        await callback.answer("Нельзя пропустить без хотя бы одного фото", show_alert=True)
+@router.callback_query(F.data.startswith("next_quest15_"))
+async def next_quest15(callback: types.CallbackQuery, state: FSMContext):
+    gender = callback.data.split("_")[-1]
+    user_data = await state.get_data()
+
+    # Проверяем, есть ли фото для текущего пола
+    if len(user_data.get(f"{gender}_photos", [])) == 0:
+        await callback.answer("Сначала отправьте хотя бы одно фото", show_alert=True)
         return
 
-    # Удаляем предыдущие сообщения (шаблоны и задание)
-    try:
-        if "template_message_ids" in user_data:
-            for msg_id in user_data["template_message_ids"]:
-                await callback.bot.delete_message(callback.message.chat.id, msg_id)
-        if "question_message_id" in user_data:
-            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
-    except Exception as e:
-        print(f"Ошибка при удалении сообщений: {e}")
-
-    # Переключаемся на другой пол или завершаем, если все собрано
-    if len(boy_photos) >= 5 and len(girl_photos) >= 5:
-        await finish_quest15(callback.message, state)
+    # Переключаем пол или завершаем
+    if gender == "boy":
+        await state.update_data(current_gender="girl")
     else:
-        next_gender = "girl" if current_gender == "boy" else "boy"
-        await state.update_data(current_gender=next_gender)
-        await request_quest15_photo(callback, state)
+        await finish_quest15(callback.message, state)
+        return
 
+    await callback.message.delete()
+    await request_quest15_photo(callback, state)
     await callback.answer()
 
 async def finish_quest15(message: types.Message, state: FSMContext):
@@ -1757,8 +1725,35 @@ async def show_quest16_scenario(callback: types.CallbackQuery, state: FSMContext
     )
 
 
+@router.callback_query(F.data.startswith("retry_quest16_"))
+async def retry_quest16_dialog(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения: {e}")
+
+    # Получаем данные из callback
+    _, _, scenario_num, dialog_num = callback.data.split("_")
+    scenario_num = int(scenario_num)
+    dialog_num = int(dialog_num)
+
+    # Обновляем состояние для повторного прохождения диалога
+    await state.update_data(
+        current_scenario=scenario_num,
+        current_dialog=dialog_num
+    )
+
+    # Показываем текущий диалог снова
+    await show_quest16_scenario(callback, state)
+    await callback.answer()
+
+
 async def handle_quest16_answer(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        print(f"Ошибка при удалении сообщения: {e}")
+
     user_data = await state.get_data()
     current_scenario = user_data.get("current_scenario", 1)
     current_dialog = user_data.get("current_dialog", 0)
@@ -1769,6 +1764,8 @@ async def handle_quest16_answer(callback: types.CallbackQuery, state: FSMContext
     selected_answer = int(callback.data.split("_")[1])
     response = dialog["responses"].get(selected_answer, {})
 
+    is_correct = selected_answer == dialog["correct"]
+
     # Отправляем ответ клиента и обратную связь
     messages = []
     if response.get("client"):
@@ -1776,48 +1773,54 @@ async def handle_quest16_answer(callback: types.CallbackQuery, state: FSMContext
     if response.get("feedback"):
         messages.append(f"📌 Совет: {response['feedback']}")
 
-    # Проверяем правильность ответа
-    is_correct = selected_answer == dialog["correct"]
+    if not is_correct:
+        # Для неверного ответа показываем сообщение с кнопкой повтора
+        if messages:
+            await callback.message.answer(
+                "\n\n".join(messages),
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(
+                        text="🔄 Попробовать снова",
+                        callback_data=f"retry_quest16_{current_scenario}_{current_dialog}"
+                    )]
+                    ]
+                )
+            )
+            await callback.answer("❌ Неверный ответ")
+        return
 
-    if messages:
-        reply_markup = None
-        if not is_correct:
-            # Добавляем кнопку "Попробовать снова" при неверном ответе
-            reply_markup = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔄 Попробовать снова",
-                                      callback_data=f"retry_quest16_{current_scenario}_{current_dialog}")]
-            ])
+    # Обработка верного ответа
+    correct_answers += 1
+
+    if response.get("final", False):
+        # Для финального ответа показываем фидбек с кнопкой "Далее"
+        message_text = []
+        if response.get("client"):
+            message_text.append(f"👤 Клиент: {response['client']}")
+        if response.get("feedback"):
+            message_text.append(f"📌 {response['feedback']}")
 
         await callback.message.answer(
-            "\n\n".join(messages),
-            reply_markup=reply_markup
+            "\n\n".join(message_text),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text="Далее →",
+                    callback_data=f"quest16_next_scenario_{current_scenario + 1}"
+                )]
+            ])
         )
 
-    if is_correct:
-        correct_answers += 1
-
-        # Проверяем, является ли этот ответ финальным для сценария
-        if response.get("final", False):
-            # Отправляем финальное сообщение
-            await callback.message.answer(response["feedback"])
-
-            # Переходим к следующему сценарию
-            await state.update_data(
-                correct_answers=correct_answers,
-                current_scenario=current_scenario + 1,
-                current_dialog=-1  # Для показа описания нового сценария
-            )
-        else:
-            # Переходим к следующему диалогу
-            await state.update_data(
-                correct_answers=correct_answers,
-                current_dialog=current_dialog + 1
-            )
-
-        await callback.answer("✅ Верный ответ!")
-        await show_quest16_scenario(callback, state)
+        # Обновляем состояние
+        await state.update_data(correct_answers=correct_answers)
     else:
-        await callback.answer("❌ Неверный ответ")
+        # Для обычного верного ответа переходим к следующему диалогу
+        await state.update_data(
+            correct_answers=correct_answers,
+            current_dialog=current_dialog + 1
+        )
+        await show_quest16_scenario(callback, state)
+
+    await callback.answer("✅ Верный ответ!")
 
 
 async def finish_quest16(callback: types.CallbackQuery, state: FSMContext):
@@ -1987,7 +1990,18 @@ async def complete_exercise_17(callback: types.CallbackQuery, state: FSMContext)
 
     await callback.answer()
 
+
 async def finish_quest17(callback: types.CallbackQuery, state: FSMContext):
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "exercise_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["exercise_message_id"])
+        if "question_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["question_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
     # Сохраняем результат в БД
     async with SessionLocal() as session:
         user_result = await session.execute(
@@ -2012,20 +2026,18 @@ async def finish_quest17(callback: types.CallbackQuery, state: FSMContext):
             user_result.result = 3
 
         achievement_given = await give_achievement(callback.from_user.id, 17, session)
+
+        # Формируем сообщение о завершении
+        message_text = "✅ Квест 17 завершен!\nВсе упражнения выполнены. Отличная работа!"
         if achievement_given:
-            # Отправляем результат пользователю
-            message = await callback.message.answer(
-                "✅ Квест 17 завершен!\n"
-                "Все упражнения выполнены. Отличная работа!\n",
-                "Поздравляем! Вы получили ачивку за выполнение квеста на 100%!",
-                reply_markup=get_quest_finish_keyboard(3, 3, 17)
-            )
-        else:
-            message = await callback.message.answer(
-                "✅ Квест 17 завершен!\n"
-                "Все упражнения выполнены. Отличная работа!",
-                reply_markup=get_quest_finish_keyboard(3, 3, 17)
-            )
+            message_text += "\n\nПоздравляем! Вы получили ачивку за выполнение квеста на 100%!"
+
+        # Отправляем финальное сообщение
+        message = await callback.message.answer(
+            message_text,
+            reply_markup=get_quest_finish_keyboard(3, 3, 17)
+        )
+
         await session.commit()
 
     await state.update_data(question_message_id=message.message_id)
@@ -2710,9 +2722,9 @@ async def quest_20(callback: types.CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
+
 @router.callback_query(F.data == "start_quest20")
 async def start_quest20(callback: types.CallbackQuery, state: FSMContext):
-    # Удаляем предыдущие сообщения
     user_data = await state.get_data()
     try:
         if "question_message_id" in user_data:
@@ -2720,33 +2732,36 @@ async def start_quest20(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         print(f"Ошибка при удалении сообщений: {e}")
 
-    # Запускаем таймер
+    # Запускаем таймер с фиксированным временем начала
+    start_time = datetime.datetime.now()
+    end_time = start_time + datetime.timedelta(minutes=10)
+
     await state.update_data(
         timer_started=True,
-        start_time=datetime.datetime.now(),
+        start_time=start_time,
+        end_time=end_time,
         user_photos=[],
-        timer_active=True
+        timer_active=True,
+        quest_completed=False
     )
 
-    # Отправляем сообщение с таймером
     message = await callback.message.answer(
         "⏱️ Таймер запущен! У вас есть 10 минут.\n"
         "Сделайте 10 фото разных детей в различных позах.\n"
-        "Оставшееся время: 10:00",
+        "Оставшееся время: 10:00\n"
+        "Сделано фото: 0/10",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Завершить досрочно", callback_data="finish_quest20_early")]
         ])
     )
 
-    # Запускаем задание
     await state.update_data(
         timer_message_id=message.message_id,
         question_message_id=message.message_id
     )
     await state.set_state(QuestState.waiting_for_photo_quest20)
-    asyncio.create_task(start_quest20_timer(callback, state))
+    asyncio.create_task(update_quest20_timer(callback, state))
     await callback.answer()
-
 
 async def start_quest20_timer(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
@@ -2788,6 +2803,42 @@ async def start_quest20_timer(callback: types.CallbackQuery, state: FSMContext):
     if timer_active:
         await finish_quest20(callback, state)
 
+
+async def update_quest20_timer(callback: types.CallbackQuery, state: FSMContext):
+    while True:
+        user_data = await state.get_data()
+        if not user_data.get("timer_active", True) or user_data.get("quest_completed", False):
+            break
+
+        start_time = user_data["start_time"]
+        end_time = user_data["end_time"]
+        photos_taken = len(user_data.get("user_photos", []))
+        required_photos = user_data.get("required_photos", 10)
+
+        remaining = end_time - datetime.datetime.now()
+        if remaining.total_seconds() <= 0:
+            await finish_quest20(callback, state)
+            break
+
+        minutes, seconds = divmod(int(remaining.total_seconds()), 60)
+
+        try:
+            await callback.bot.edit_message_text(
+                f"⏱️ Таймер запущен! У вас есть 10 минут.\n"
+                f"Сделайте {required_photos} фото разных детей в различных позах.\n"
+                f"Оставшееся время: {minutes:02d}:{seconds:02d}\n"
+                f"Сделано фото: {photos_taken}/{required_photos}",
+                chat_id=callback.message.chat.id,
+                message_id=user_data["timer_message_id"],
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="Завершить досрочно", callback_data="finish_quest20_early")]
+                ])
+            )
+        except Exception as e:
+            print(f"Ошибка при обновлении таймера: {e}")
+
+        await asyncio.sleep(1)
+
 @router.message(F.photo, QuestState.waiting_for_photo_quest20)
 async def handle_photo_quest20(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
@@ -2795,26 +2846,20 @@ async def handle_photo_quest20(message: types.Message, state: FSMContext):
         await message.delete()
         return
 
-    photos_taken = user_data.get("photos_taken", 0)
     user_photos = user_data.get("user_photos", [])
     required_photos = user_data.get("required_photos", 10)
 
-    # Если уже собрано достаточно фото, игнорируем новые
-    if photos_taken >= required_photos:
+    if len(user_photos) >= required_photos:
         await message.delete()
         return
 
     # Добавляем фото в список
     user_photos.append(message.photo[-1].file_id)
-    photos_taken += 1
-
-    await state.update_data(
-        photos_taken=photos_taken,
-        user_photos=user_photos
-    )
+    await state.update_data(user_photos=user_photos)
 
     # Проверяем, все ли фото собраны
-    if photos_taken >= required_photos:
+    if len(user_photos) >= required_photos:
+        await state.update_data(timer_active=False)
         await finish_quest20(message, state)
 
     await message.delete()
@@ -2823,16 +2868,13 @@ async def handle_photo_quest20(message: types.Message, state: FSMContext):
 @router.callback_query(F.data == "finish_quest20_early")
 async def finish_quest20_early(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
-    photos_taken = user_data.get("photos_taken", 0)
-
-    if photos_taken == 0:
+    if len(user_data.get("user_photos", [])) == 0:
         await callback.answer("Нельзя завершить без ни одного фото", show_alert=True)
         return
 
     await state.update_data(timer_active=False)
     await finish_quest20(callback, state)
     await callback.answer()
-
 
 async def finish_quest20(event: Union[types.Message, types.CallbackQuery], state: FSMContext):
     # Проверяем, не завершен ли уже квест

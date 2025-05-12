@@ -256,11 +256,15 @@ async def quest_1(callback: types.CallbackQuery, state: FSMContext):
 
     await callback.answer()
 
-# Квест 2
+
 async def quest_2(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     current_question = user_data.get("current_question", 1)
     correct_count = user_data.get("correct_count", 0)
+
+    # Инициализируем список использованных фото, если его нет
+    if "used_photos" not in user_data:
+        await state.update_data(used_photos={})
 
     # Удаляем предыдущие сообщения, если они есть
     try:
@@ -277,25 +281,45 @@ async def quest_2(callback: types.CallbackQuery, state: FSMContext):
     folder_name = correct_answers_qw2[current_question]
     photo_dir = BASE_DIR / f"handlers/media/photo/Zone/{folder_name}"
 
-    # Получаем список доступных фото и перемешиваем
-    available_photos = list(photo_dir.glob("*.jpg"))
-    if len(available_photos) < 2:
+    # Получаем список всех доступных фото
+    all_photos = list(photo_dir.glob("*.jpg"))
+    if len(all_photos) < 2:
         raise ValueError(f"Недостаточно фотографий в папке {folder_name} (нужно минимум 2)")
 
-    shuffle(available_photos)
-    photo_path1, photo_path2 = available_photos[:2]
+    # Получаем список уже использованных фото для этой папки
+    used_photos = user_data.get("used_photos", {}).get(folder_name, [])
 
-    if not photo_path1.exists() or not photo_path2.exists():
+    # Выбираем только те фото, которые еще не использовались
+    available_photos = [p for p in all_photos if p.name not in used_photos]
+
+    # Если доступных фото меньше 2, сбрасываем историю для этой папки
+    if len(available_photos) < 2:
+        available_photos = all_photos
+        used_photos = []
+
+    # Выбираем 2 случайных фото
+    shuffle(available_photos)
+    selected_photos = available_photos[:2]
+
+    # Обновляем список использованных фото
+    used_photos.extend([p.name for p in selected_photos])
+    updated_used_photos = user_data.get("used_photos", {})
+    updated_used_photos[folder_name] = used_photos
+    await state.update_data(used_photos=updated_used_photos)
+
+    # Проверяем существование файлов
+    if not all(p.exists() for p in selected_photos):
         await callback.message.answer("Файлы с изображениями не найдены.")
         return
 
-    album_builder = MediaGroupBuilder(caption=f"Квест 2: Вопрос {current_question}\n"
-                                            "Определи на какой локации сделаны фото\n"
-                                            f"Верных ответов: {correct_count} из {len(correct_answers_qw2)}")
-    album_builder.add(type="photo", media=FSInputFile(str(photo_path1)))
-    album_builder.add(type="photo", media=FSInputFile(str(photo_path2)))
+    # Создаем медиагруппу
+    album_builder = MediaGroupBuilder(
+        caption=f"Квест 2: Вопрос {current_question}\nОпредели на какой локации сделаны фото\n"
+    )
+    for photo_path in selected_photos:
+        album_builder.add(type="photo", media=FSInputFile(str(photo_path)))
 
-    # Отправляем новую медиагруппу
+    # Отправляем медиагруппу
     photo_messages = await callback.message.answer_media_group(media=album_builder.build())
     photo_message_ids = [msg.message_id for msg in photo_messages]
 
@@ -2385,7 +2409,7 @@ async def show_quest10_step(callback: types.CallbackQuery, state: FSMContext, st
 
         # Отправляем клавиатуру для выбора
         message = await callback.message.answer(
-            "Выберите правильный вариант (1-4):",
+            get_step_caption(step) + "\nВыберите правильный вариант (1-4):",
             reply_markup=quest10_choice_keyboard(step)
         )
 

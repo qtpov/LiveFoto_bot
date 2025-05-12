@@ -242,10 +242,7 @@ async def handle_moderation(callback: types.CallbackQuery, state: FSMContext):
                     action="accept"
                 )
                 await callback.message.answer(
-                    "Введите комментарий для пользователя:",
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="Отмена", callback_data="cancel_moderation")]
-                    ])
+                    "Введите комментарий для пользователя:"
                 )
                 await state.set_state(QuestState.waiting_for_comment)
 
@@ -260,10 +257,7 @@ async def handle_moderation(callback: types.CallbackQuery, state: FSMContext):
                     action="reject"
                 )
                 await callback.message.answer(
-                    "Укажите причину отклонения:",
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="Отмена", callback_data="cancel_moderation")]
-                    ])
+                    "Укажите причину отклонения:"
                 )
                 await state.set_state(QuestState.waiting_for_comment)
 
@@ -303,15 +297,7 @@ async def process_comment(message: types.Message, state: FSMContext):
         await message.answer(f"Ошибка: {str(e)}")
 
 
-@moderation_router.callback_query(F.data == "cancel_moderation", QuestState.waiting_for_comment)
-async def cancel_moderation(callback: types.CallbackQuery, state: FSMContext):
-    await state.clear()
-    await callback.message.delete()
-    await callback.message.answer("Модерация отменена")
-    await callback.answer()
-
-
-# Модерация квеста 22
+#модерация 22 квеста
 @moderation_router.callback_query(F.data.startswith("acc_22_"))
 async def accept_quest22(callback: types.CallbackQuery):
     try:
@@ -333,7 +319,7 @@ async def accept_quest22(callback: types.CallbackQuery):
 
             await session.commit()
 
-        async with SessionLocal() as session:
+            # Даем ачивку
             await give_achievement(user_id, 22, session)
 
         # Удаляем кнопки и редактируем сообщение
@@ -342,13 +328,13 @@ async def accept_quest22(callback: types.CallbackQuery):
             reply_markup=None
         )
 
-        # Уведомляем пользователя
+        # Уведомляем пользователя с кнопкой "Далее"
         await callback.bot.send_message(
             user_id,
             "✅ Ваши ответы приняты модератором! Поздравляем с успешным прохождением квеста!",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🏠 В главное меню", callback_data="profile")]]
-            )
+                [InlineKeyboardButton(text="Далее →", callback_data="next_quest_22")]
+            ])
         )
 
         await callback.answer("Ответы приняты")
