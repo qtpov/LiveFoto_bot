@@ -58,10 +58,9 @@ def quests_list_keyboard():
 
 def knowledge_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Тема 1", callback_data="zn_1")],
-        [InlineKeyboardButton(text="Тема 2", callback_data="zn_2")],
-        [InlineKeyboardButton(text="Тема 3", callback_data="zn_3")],
-        [InlineKeyboardButton(text="Тема 4", callback_data="zn_4")],
+        [InlineKeyboardButton(text="Товары и цены", callback_data="zn_1")],
+        [InlineKeyboardButton(text="Теория продаж", callback_data="zn_2")],
+        [InlineKeyboardButton(text="Этапы продаж", callback_data="zn_3")],
         [InlineKeyboardButton(text="Профиль", callback_data="profile")]
     ])
 
