@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from .configurate import settings
 
-from .handlers import commands, profile, achievements, moderation, quests, games, knowledge_base, registration, admin_panel,quests_day2, quests_day3
+from .handlers import commands, profile, achievements, moderation, quests, games, quiz_game, own_game, knowledge_test, knowledge_base, registration, admin_panel,quests_day2, quests_day3
 from .db.init_db import init_db
 
 
@@ -23,6 +23,9 @@ dp.include_router(achievements.router)
 dp.include_router(moderation.moderation_router)
 dp.include_router(quests.router)
 dp.include_router(games.router)
+dp.include_router(quiz_game.router)
+dp.include_router(own_game.router)
+dp.include_router(knowledge_test.router)
 dp.include_router(knowledge_base.router)
 dp.include_router(registration.router)
 dp.include_router(admin_panel.router)

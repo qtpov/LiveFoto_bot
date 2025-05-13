@@ -296,6 +296,25 @@ async def process_comment(message: types.Message, state: FSMContext):
     except Exception as e:
         await message.answer(f"Ошибка: {str(e)}")
 
+#для мини игр
+@moderation_router.callback_query(F.data.startswith("approve_"))
+async def approve_test(callback: CallbackQuery):
+    user_id = int(callback.data.split("_")[1])
+    await callback.bot.send_message(
+        user_id,
+        "✅ Ваши ответы на тест знаний были одобрены!"
+    )
+    await callback.answer("Тест одобрен")
+
+@moderation_router.callback_query(F.data.startswith("reject_"))
+async def reject_test(callback: CallbackQuery):
+    user_id = int(callback.data.split("_")[1])
+    await callback.bot.send_message(
+        user_id,
+        "❌ Ваши ответы на тест знаний требуют доработки."
+    )
+    await callback.answer("Тест отклонен")
+
 
 #модерация 22 квеста
 @moderation_router.callback_query(F.data.startswith("acc_22_"))
