@@ -2645,7 +2645,7 @@ async def handle_app_rating(callback: types.CallbackQuery, state: FSMContext):
 
     message = await callback.message.answer(
         "Оцени на сколько хорошо ты теперь ориентируешься на своей локации, удалось или изучить ее с помощью приложения "
-        "(где 1 - впщ не понятно, хорошо коллеги рассказали, а 5 - круто и понятно, теперь знаю, что и где находится):",
+        "(где 1 - совсем не понятно, хорошо коллеги рассказали, а 5 - круто и понятно, теперь знаю, что и где находится):",
         reply_markup=quest11_rating_keyboard()
     )
 
@@ -2894,7 +2894,7 @@ async def finish_quest11(callback: types.CallbackQuery, state: FSMContext):
                 quest_id=11,
                 state="выполнен",
                 attempt=1,
-                result=0
+                result=100
             )
             session.add(user_result)
         else:

@@ -367,7 +367,7 @@ def quest11_team_keyboard():
 
 def quest11_uniform_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Впщ не нравится", callback_data="uniform_1")],
+        [InlineKeyboardButton(text="Совсем не нравится", callback_data="uniform_1")],
         [InlineKeyboardButton(text="Прикольная футболка", callback_data="uniform_2")],
         [InlineKeyboardButton(text="Мне все равно", callback_data="uniform_3")],
         [InlineKeyboardButton(text="Есть предложения по изменению", callback_data="uniform_4")]
