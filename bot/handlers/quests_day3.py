@@ -179,14 +179,14 @@ async def handle_quest27_answer(callback: types.CallbackQuery, state: FSMContext
     # Показываем результат с соответствующим сообщением
     feedback = feedback_messages_qw27[current_question]["correct"] if is_correct else \
     feedback_messages_qw27[current_question]["wrong"]
-    await callback.message.answer(feedback)
+
 
     # Переход к следующему вопросу или завершение
     if current_question < len(correct_answers_qw27):
         next_button = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Далее →", callback_data="next_question_27")]
         ])
-        await callback.message.answer("Переходим к следующему вопросу:", reply_markup=next_button)
+        await callback.message.answer(f"{feedback}\n\nПереходим к следующему вопросу:", reply_markup=next_button)
         await state.update_data(
             correct_answers=correct_answers
         )
@@ -219,10 +219,10 @@ async def quest_28(callback: types.CallbackQuery, state: FSMContext):
         print(f"Ошибка при удалении сообщений: {e}")
 
     # Отправляем теорию и видео
-    await callback.message.answer_video("BAACAgIAAxkBAAJdzmg4u2QBepBuTjMjZjCms6-gKrCMAAJRbwAC2TvISW9VtsU1OpZNNgQ")
+    file_id = "BAACAgIAAxkBAAJdzmg4u2QBepBuTjMjZjCms6-gKrCMAAJRbwAC2TvISW9VtsU1OpZNNgQ"
 
-    message = await callback.message.answer(
-        "⚡ Квест 28: Сборка магнитов\n\n"
+    message = await callback.message.answer_video(video=file_id,
+        caption="⚡ Квест 28: Собери все\n\n"
         "Твоя задача собрать 6 магнитов как можно быстрее,"
         " при нажатии “СТАРТ” будет запущен таймер в боте. "
         "Перед началом попроси коллегу записать тебя на видео так, "

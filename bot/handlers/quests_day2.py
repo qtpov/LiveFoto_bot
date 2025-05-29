@@ -2292,9 +2292,24 @@ async def quest_19(callback: types.CallbackQuery, state: FSMContext):
     message = await callback.message.answer(
         "🖨️ Квест 19: Алгоритм действий\n\n"
         "Сейчас мы вместе научимся выводить фото на печать.\n"
-        "Нажмите 'Начать выполнение' для просмотра инструкции.",
+        "Давай сначала посмотрим видео.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Начать выполнение", callback_data="start_quest19")]
+            [InlineKeyboardButton(text="Смотреть видео", callback_data="video_quest19")]
+        ])
+    )
+
+    await callback.answer()
+
+
+@router.callback_query(F.data == "video_quest19")
+async def video_quest19(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    # Отправляем видео
+    file_id = "BAACAgIAAxkBAAJehmg47A5TLIkf2LCbfEq35XF2vK6vAAKZcAAC2TvISXlt7ezXZvbeNgQ"
+    message = await callback.message.answer_video(video=file_id,
+        caption="Давай теперь разберем детально и поэтапно",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Хочу знать детали", callback_data="start_quest19")]
         ])
     )
 
@@ -2307,7 +2322,6 @@ async def quest_19(callback: types.CallbackQuery, state: FSMContext):
         total_test_questions=5
     )
     await callback.answer()
-
 
 @router.callback_query(F.data == "start_quest19")
 async def start_quest19(callback: types.CallbackQuery, state: FSMContext):
