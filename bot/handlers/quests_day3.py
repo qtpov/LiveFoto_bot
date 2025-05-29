@@ -111,25 +111,25 @@ async def quest_27(callback: types.CallbackQuery, state: FSMContext):
         {
             "text": "Какое фото пересвечено?",
             "media": [
-                BASE_DIR / "bot/handlers/media/photo/zaglushka.png",
-                BASE_DIR / "bot/handlers/media/photo/zaglushka.png",
-                BASE_DIR / "bot/handlers/media/photo/zaglushka.png"
+                 "AgACAgIAAxkBAAJdvGg4t8tgzwJ6IGg9s8XquNydlkCQAAJS9TEb2TvISQEZR_witRaqAQADAgADeQADNgQ",
+                "AgACAgIAAxkBAAJdwGg4t9Cfm7Lj6NqyQpxV2FrEtC4jAAJT9TEb2TvISdrGfGH9WRc9AQADAgADeQADNgQ",
+                "AgACAgIAAxkBAAJdvmg4t82tkJUz571HD_VscuKl_It1AAIm8DEbRt3ISdhiPgwNbB6OAQADAgADeQADNgQ"
             ]
         },
         {
             "text": "Какое фото имеет расфокусировку?",
             "media": [
-                BASE_DIR / "bot/handlers/media/photo/zaglushka.png",
-                BASE_DIR / "bot/handlers/media/photo/zaglushka.png",
-                BASE_DIR / "bot/handlers/media/photo/zaglushka.png"
+                "AgACAgIAAxkBAAJdxGg4uFuJJjaB8yWWH0kNoUoxNEJ5AAJa9TEb2TvISQ4oGzNFnB8VAQADAgADeQADNgQ",
+                "AgACAgIAAxkBAAJdwmg4uFh91XgXxxwsd3_MDAoCSY3WAAJZ9TEb2TvISQbhz8jso0J3AQADAgADeQADNgQ",
+                "AgACAgIAAxkBAAJdxmg4uF6OrtMVRnJoeGfZZmxHNMl_AAJb9TEb2TvISRkhSOUrM8UrAQADAgADeQADNgQ"
             ]
         },
         {
             "text": "На каком фото обрезаны конечности?",
             "media": [
-                BASE_DIR / "bot/handlers/media/photo/zaglushka.png",
-                BASE_DIR / "bot/handlers/media/photo/zaglushka.png",
-                BASE_DIR / "bot/handlers/media/photo/zaglushka.png"
+                "AgACAgIAAxkBAAJdyGg4uMpyv9OgO8ABXEfWZrMVYYB5AAJd9TEb2TvISRTfXiwmoed_AQADAgADeQADNgQ",
+                 "AgACAgIAAxkBAAJdzGg4uM-gZzQ8mHlhYOb8iRcDsAIfAAJf9TEb2TvISTNSV4WRzcPrAQADAgADeQADNgQ",
+                 "AgACAgIAAxkBAAJdymg4uMy03RKTI1EjovHbfIN0Pz00AAJe9TEb2TvISUvORgUnIubUAQADAgADeQADNgQ"
             ]
         }
     ]
@@ -137,7 +137,7 @@ async def quest_27(callback: types.CallbackQuery, state: FSMContext):
     # Создаем медиагруппу
     album_builder = MediaGroupBuilder()
     for i, photo in enumerate(questions[current_question - 1]["media"], 1):
-        album_builder.add_photo(media=FSInputFile(photo), caption=f"Вариант {i}")
+        album_builder.add_photo(media=photo, caption=f"Вариант {i}")
 
     # Отправляем медиагруппу и вопрос
     messages = await callback.message.answer_media_group(media=album_builder.build())
@@ -219,7 +219,7 @@ async def quest_28(callback: types.CallbackQuery, state: FSMContext):
         print(f"Ошибка при удалении сообщений: {e}")
 
     # Отправляем теорию и видео
-    await callback.message.answer_video("BAACAgIAAxkBAAImsGf0B-OgQ_mpwLkKY2RnMiOqG1DbAALqbgACoYqhS7f0qJ4Nuj69NgQ")
+    await callback.message.answer_video("BAACAgIAAxkBAAJdzmg4u2QBepBuTjMjZjCms6-gKrCMAAJRbwAC2TvISW9VtsU1OpZNNgQ")
 
     message = await callback.message.answer(
         "⚡ Квест 28: Сборка магнитов\n\n"
@@ -1320,12 +1320,30 @@ async def quest_32(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.delete()
     except:
         pass
+    video = "BAACAgIAAxkBAAJdsWg4qZPqhDKy4pO2MDCNqiNIfn1EAAJZbgAC2TvISXxX2YbzsvpnNgQ"
+    msg = await callback.message.answer_video(video=video,caption=
+        "Квест 32: Ценности компании\nИзучите ценности и пройдите тест\n\n"
+        "Ценности компании — это правила, показывающие, как она работает, и определяющие её приоритеты. Они помогают сотрудникам принимать "
+        "решения и выполнять свою работу.Ценности делают компанию особенной, помогают ей выглядеть лучше и привлекать сотрудников, согласных с ними.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Хочу узнать ценности!", callback_data="step2_32")]]
+        ))
+    await state.set_state(QuestState.waiting_for_answer)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "step2_32", QuestState.waiting_for_answer)
+async def step2_32(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.delete()
+    except:
+        pass
 
     msg = await callback.message.answer(
-        "Квест 32: Ценности компании\nИзучите ценности и пройдите тест",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Начать игру", callback_data="start_game_32")]]
-        ))
+    "Ценностями компании LiveFoto являются: честность, ответственность,работа в команде и саморазвитие",
+    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+          [InlineKeyboardButton(text="Начать игру", callback_data="start_game_32")]]
+      ))
 
     await state.update_data(
         current_scenario=0,

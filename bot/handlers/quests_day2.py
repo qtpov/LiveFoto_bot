@@ -128,6 +128,7 @@ async def finish_quest(callback: types.CallbackQuery, state: FSMContext, correct
 
 
 # Квест 12 - Привыкни к аппарату
+# Квест 12 - Привыкни к аппарату (упрощенная версия с одним видео)
 async def quest_12(callback: types.CallbackQuery, state: FSMContext):
     # Удаляем предыдущие сообщения
     user_data = await state.get_data()
@@ -138,101 +139,39 @@ async def quest_12(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         print(f"Ошибка при удалении сообщений: {e}")
 
-    # Список видео с описаниями
-    video_steps = [
-        {
-            "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
-            "description": "Квест 12. Привыкни к аппарату\n🔧 Настройка ISO, выдержки и диафрагмы"
-        },
-        {
-            "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
-            "description": "📷 Кнопка отключения главного дисплея"
-        },
-        {
-            "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
-            "description": "⚙️ Настройка фокусировки (one shot)"
-        },
-        {
-            "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
-            "description": "🔄 Настройка формата файла (RAW)"
-        },
-        {
-            "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
-            "description": "⚡ Настройка вспышки и синхронизаторов"
-        }
-    ]
+    # Данные видео
+    video_data = {
+        "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
+        "description": "Квест 12. Привыкни к аппарату\n🔧Посмотри видео и будь готов к тесту"
+    }
 
-    # Сохраняем данные о видео в state
-    await state.update_data(
-        video_steps=video_steps,
-        current_step=0,
-        video_message_ids=[],
-        test_mode=False
+    # Отправляем видео с описанием
+    sent_message = await callback.message.answer_photo(
+        video_data["file_id"],
+        caption=video_data["description"],
+        parse_mode="Markdown"
     )
 
-    # Начинаем показ первого видео
-    await show_next_video_step_12(callback, state)
+    # Создаем клавиатуру с кнопкой для начала теста
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Приступить к тесту", callback_data="start_quest12_test")]
+    ])
+
+    # Отправляем сообщение с кнопкой
+    step_message = await callback.message.answer(
+        "После просмотра видео нажмите 'Приступить к тесту'",
+        reply_markup=keyboard
+    )
+
+    # Сохраняем ID сообщений для возможного удаления
+    await state.update_data(
+        video_message_id=sent_message.message_id,
+        step_message_id=step_message.message_id
+    )
+
     await callback.answer()
 
 
-async def show_next_video_step_12(callback: types.CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    current_step = user_data.get("current_step", 0)
-    video_steps = user_data.get("video_steps", [])
-    video_message_ids = user_data.get("video_message_ids", [])
-
-    # Удаляем предыдущее сообщение с кнопкой, если оно есть
-    if "step_message_id" in user_data:
-        try:
-            await callback.bot.delete_message(callback.message.chat.id, user_data["step_message_id"])
-        except Exception as e:
-            print(f"Ошибка при удалении сообщения: {e}")
-
-    # Проверяем, есть ли еще видео для показа
-    if current_step < len(video_steps):
-        step_data = video_steps[current_step]
-
-        # Отправляем видео с описанием
-        sent_message = await callback.message.answer_photo(
-            step_data["file_id"],
-            caption=step_data["description"],
-            parse_mode="Markdown"
-        )#заменить на видео
-        video_message_ids.append(sent_message.message_id)
-
-        # Создаем клавиатуру (Далее или Приступить к тесту для последнего шага)
-        if current_step < len(video_steps) - 1:
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Далее →", callback_data="next_video_step_12")]
-            ])
-            action_text = "Нажмите 'Далее' для продолжения"
-        else:
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Приступить к тесту", callback_data="start_quest12_test")]
-            ])
-            action_text = "После просмотра всех видео нажмите 'Приступить к тесту'"
-
-        # Отправляем сообщение с кнопкой
-        step_message = await callback.message.answer(
-            action_text,
-            reply_markup=keyboard
-        )
-
-        # Обновляем состояние
-        await state.update_data(
-            current_step=current_step + 1,
-            video_message_ids=video_message_ids,
-            step_message_id=step_message.message_id
-        )
-    else:
-        # Все видео показаны, можно начинать тест
-        await start_quest12_test(callback, state)
-
-
-@router.callback_query(F.data == "next_video_step_12")
-async def handle_next_video_step_12(callback: types.CallbackQuery, state: FSMContext):
-    await show_next_video_step_12(callback, state)
-    await callback.answer()
 
 
 @router.callback_query(F.data == "start_quest12_test")
@@ -242,9 +181,8 @@ async def start_quest12_test(callback: types.CallbackQuery, state: FSMContext):
     try:
         if "step_message_id" in user_data:
             await callback.bot.delete_message(callback.message.chat.id, user_data["step_message_id"])
-        if "video_message_ids" in user_data:
-            for msg_id in user_data["video_message_ids"]:
-                await callback.bot.delete_message(callback.message.chat.id, msg_id)
+        if "video_message_id" in user_data:  # Теперь используем video_message_id вместо video_message_ids
+            await callback.bot.delete_message(callback.message.chat.id, user_data["video_message_id"])
     except Exception as e:
         print(f"Ошибка при удалении сообщений: {e}")
 
@@ -289,15 +227,15 @@ async def ask_quest12_question(callback: types.CallbackQuery, state: FSMContext)
     # Определяем, какую картинку и вопрос показывать
     if 1 <= current_question <= 4:
         # Вопросы 1-4 - дисплей фотоаппарата
-        photo_path = BASE_DIR / "handlers/media/photo/zaglushka.png"
+        file_id =  "AgACAgIAAxkBAAJdfGg4khW8jHWsXL2P_rd74aRipB-eAAIp9DEb2TvISeD6X3VYfdEYAQADAgADeQADNgQ"
         question_text = f"Квест 12: Вопрос {current_question}/11\nЧто мы можем поменять под цифрой {current_question}?"
     elif 5 <= current_question <= 8:
         # Вопросы 5-8 - верхняя часть с кнопками
-        photo_path = BASE_DIR / "handlers/media/photo/zaglushka.png"
+        file_id = "AgACAgIAAxkBAAJdgGg4kjz1FPti9eIwprgcJYUBWIjxAAIr9DEb2TvISQfvtrQ3DqpiAQADAgADeQADNgQ"
         question_text = f"Квест 12: Вопрос {current_question}/11\nЧто мы можем поменять под цифрой {current_question - 4}?"
     else:
         # Вопросы 9-11 - экран вспышки
-        photo_path = BASE_DIR / "handlers/media/photo/zaglushka.png"
+        file_id = "AgACAgIAAxkBAAJdhGg4knGTs9WZdQRAIelPM09Q6ENmAAIt9DEb2TvISXV1XliIAAFtgQEAAwIAA3kAAzYE"
         question_text = f"Квест 12: Вопрос {current_question}/11\nЧто мы можем поменять под цифрой {current_question - 8}?"
 
     # Варианты ответов для текущего вопроса
@@ -319,7 +257,7 @@ async def ask_quest12_question(callback: types.CallbackQuery, state: FSMContext)
     options[current_question].append("подсказка")
 
     # Отправляем фото с вопросом
-    photo = FSInputFile(photo_path)
+    photo = file_id
     message = await callback.message.answer_photo(
         photo,
         caption=question_text,
@@ -347,14 +285,14 @@ async def handle_quest12_answer(callback: types.CallbackQuery, state: FSMContext
     if selected_answer == "подсказка":
         # Определяем путь к изображению с подсказкой
         if 1 <= current_question <= 4:
-            hint_path = BASE_DIR / "handlers/media/photo/zaglushka.png"
+            file_id =  "AgACAgIAAxkBAAJdfmg4kh0helML4OykF7bul9RvyEAXAAIq9DEb2TvISU-V-F7SDxyoAQADAgADeQADNgQ"
         elif 5 <= current_question <= 8:
-            hint_path = BASE_DIR / "handlers/media/photo/zaglushka.png"
+            file_id = "AgACAgIAAxkBAAJdgmg4kk17SPzqHExvkacQeXr5Jj1JAAIs9DEb2TvISZ5KQB907BnbAQADAgADeQADNgQ"
         else:
-            hint_path = BASE_DIR / "handlers/media/photo/zaglushka.png"
+            file_id = "AgACAgIAAxkBAAJdhmg4koSulepnq-uV1aAfwK646gghAAIu9DEb2TvISTbizMlzWEXYAQADAgADeQADNgQ"
 
         # Отправляем подсказку
-        hint_photo = FSInputFile(hint_path)
+        hint_photo = file_id
         await callback.message.delete()
         message = await callback.message.answer_photo(
             hint_photo,
@@ -1686,6 +1624,13 @@ async def show_quest16_scenario(callback: types.CallbackQuery, state: FSMContext
     response = dialog["responses"].get(0, {})
 
     # Формируем текст сообщения
+    if current_dialog == 3 and 'мы подружились с Викой и Алиной' in dialog['photographer']:
+        message_text = f"📌 Ситуация: {scenario['name']}\n\n"
+        message_text += f"📷 Фотограф: {dialog['photographer']}\n\n"
+        if dialog["client"]:
+            message_text += f"👤 Клиент: {dialog['client']}\n\n"
+
+
     message_text = f"📌 Ситуация: {scenario['name']}\n\n"
     if dialog["client"]:
         message_text += f"👤 Клиент: {dialog['client']}\n\n"
@@ -2386,76 +2331,68 @@ async def show_quest19_step(callback: types.CallbackQuery, state: FSMContext):
     # Шаги инструкции (остаются без изменений)
     steps = {
         1: {
-            "text": "1. Открываем вкладку Импорт",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "1. Вставляем новую флешку в картридер и открываем вкладку Импорт",
+            "photo": "AgACAgIAAxkBAAJdiGg4onBNkVkAASofHpMuaI-Y9WV3mwACy_QxG9k7yEkpWVryP3SFUwEAAwIAA3kAAzYE"
         },
         2: {
-            "text": "2. Вставляем новую флешку в картридер",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "2. Это место где появилась флешка, выбираем флешку",
+            "photo": "AgACAgIAAxkBAAJdimg4onMrqckUWQPtATsbJw9uovDBAALM9DEb2TvISTWO3OG0aSCBAQADAgADeQADNgQ"
         },
         3: {
-            "text": "3. Мышкой «обводим» место где появилась флешка",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "3. Здесь открылись все фотографии, нужно нажать на “Копия”",
+            "photo": "AgACAgIAAxkBAAJdjGg4onf5w-XX33ptjtG83qQIoG9LAALN9DEb2TvISS4S-gIQJQncAQADAgADeQADNgQ"
         },
         4: {
-            "text": "4. Выбираем флешку, обводим место где открылись все фотографии",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "4. Здесь выбираем место куда сохранять фотографии",
+            "photo": "AgACAgIAAxkBAAJdjmg4onqmM1YhzIWk_8qIrOhpl0e1AALO9DEb2TvISYp4PA9-mCZ5AQADAgADeQADNgQ"
         },
         5: {
-            "text": "5. Показываем как выбрать место куда сохранять фотографии",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "5. Нажимаем на кнопку” Импорт”",
+            "photo": "AgACAgIAAxkBAAJdkGg4on0lM8y0eTKQzuzUCIDPDEx4AALP9DEb2TvISddONf62uzk6AQADAgADeQADNgQ"
         },
         6: {
-            "text": "6. Обводим кнопку Импорт, нажимаем её",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "6.  Тут выгружаются все фото.",
+            "photo": "AgACAgIAAxkBAAJdkmg4ooAKj5RSlla37ZZQu7VPWYfSAALQ9DEb2TvISWzlI49SHdaPAQADAgADeQADNgQ"
         },
         7: {
-            "text": "7. Обводим полоску загрузки фотографий",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "7. Открываем вкладку «Обработка» или «редактирование»",
+            "photo": "AgACAgIAAxkBAAJdlGg4ooO6kvUs6EN_-T6DcD2trb9OAALR9DEb2TvISYNsdLkRf-B_AQADAgADeQADNgQ"
         },
         8: {
-            "text": "8. Обводим и открываем вкладку «обработка» или «редактирование»",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "8. Выбираем первое фото",
+            "photo": "AgACAgIAAxkBAAJdlmg4oobslNkI52ihHQL9mhka8ExuAALS9DEb2TvISYpEl2nPODYfAQADAgADeQADNgQ"
         },
         9: {
-            "text": "9. Обводим снизу все фотки какие мы импортировали, выбираем первую",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "9. Это окно с пресетами, выбери один из “пользовательских”",
+            "photo": "AgACAgIAAxkBAAJdmGg4oopk_kAddKLalOpVoKaWKadjAAKw7jEbRt3ISQPAMnkHCDu8AQADAgADeQADNgQ"
         },
         10: {
-            "text": "10. Слева обводим окошко с пресетами, выбираем какой-нибудь не автоматически применённый, потом возвращаем на автоматически применённый",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "10. Это окно с настройками баланса белого, экспозиции и т.д.",
+            "photo": "AgACAgIAAxkBAAJdmmg4oo5p-hPOvzuMUWmGjdNqHekTAALT9DEb2TvISRTwH_DbScY7AQADAgADeQADNgQ"
         },
         11: {
-            "text": "11. Обводим окошко с настройками баланса белого, экспозиции и т.д.",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "11. Редактируем фотографии, не спеша, по возможности используя побольше инструментов",
+            "photo": "AgACAgIAAxkBAAJdnGg4opEZMR0QauDjVcu1QwvSVowrAALU9DEb2TvISXPu1-OMZahYAQADAgADeQADNgQ"
         },
         12: {
-            "text": "12. Редактируем фотографию, не спеша, по возможности используя по больше инструментов",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "12. Открываем окно “Печать”",
+            "photo": "AgACAgIAAxkBAAJdnmg4opQ3Cxc1ulbyrkXT1_mg9I8EAALV9DEb2TvISegq2oQL0KdFAQADAgADeQADNgQ"
         },
         13: {
-            "text": "13. Редактируем остальные фотографии. Тут я просто ускорю весь процесс, главное левые окна не открывайте",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "13. Это окно с шаблонами печати. Выбираем шаблон на 6 магнитов или любой понравившийся",
+            "photo": "AgACAgIAAxkBAAJdoGg4opg2kPn4CFOdCgkV7miinyVGAALW9DEb2TvIScQ8K7T7mEBwAQADAgADeQADNgQ"
         },
         14: {
-            "text": "14. Обводим и Открываем окно Печать",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "14. Выбираем фотографии для шалона",
+            "photo": "AgACAgIAAxkBAAJdomg4opqFxbsbv31VBMwbF0CBVBMaAALX9DEb2TvISSzT0yf85An2AQADAgADeQADNgQ"
         },
         15: {
-            "text": "15. Обводим окно с шаблонами печати и выбираем шаблон на 6 магнитов или фотку А5\А4",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "15.  Кнопка «печать…» или “принтер…”, нажимаем на неё",
+            "photo": "AgACAgIAAxkBAAJdpGg4op4TBFB7WQ2z-0EBsmKnwZ55AAKx7jEbRt3ISdCfvib8trVxAQADAgADeQADNgQ"
         },
         16: {
-            "text": "16. Выбираем фотографии для шаблона",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
-        },
-        17: {
-            "text": "17. Обводим кнопку «печать…», нажимаем её",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
-        },
-        18: {
-            "text": "18. Обводим кнопку «Печать» и запускаем импорт",
-            "photo": "AgACAgIAAxkBAAIsJGf5XoKFaUbeIPNrGjmMSnvaZanuAALb7jEbqNnQS0I4Tz8mVhJ-AQADAgADeAADNgQ"
+            "text": "16.  Нажимаем «Ок» и импорт запускается.",
+            "photo": "AgACAgIAAxkBAAJdpmg4or7i1U_NvULMtFidbtVG7BF7AALZ9DEb2TvISbL5uLsaH0oNAQADAgADeAADNgQ"
         }
     }
 
