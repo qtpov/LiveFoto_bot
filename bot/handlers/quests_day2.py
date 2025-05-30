@@ -1624,17 +1624,19 @@ async def show_quest16_scenario(callback: types.CallbackQuery, state: FSMContext
     response = dialog["responses"].get(0, {})
 
     # Формируем текст сообщения
-    if current_dialog == 3 and 'мы подружились с Викой и Алиной' in dialog['photographer']:
-        message_text = f"📌 Ситуация: {scenario['name']}\n\n"
+    message_text = f"📌 Ситуация: {scenario['name']}\n\n"
+
+    # Специальная обработка для конкретного диалога
+    if (current_scenario == 3 and current_dialog == 3 and
+            'мы подружились с Викой и Алиной' in dialog['photographer']):
+        if dialog["client"]:
+            message_text += f"👤 Клиент: {dialog['client']}\n\n"
+        message_text += f"📷 Фотограф: {dialog['photographer']}\n\n"
+    else:
+        # Стандартный порядок для всех остальных диалогов
         message_text += f"📷 Фотограф: {dialog['photographer']}\n\n"
         if dialog["client"]:
             message_text += f"👤 Клиент: {dialog['client']}\n\n"
-
-
-    message_text = f"📌 Ситуация: {scenario['name']}\n\n"
-    if dialog["client"]:
-        message_text += f"👤 Клиент: {dialog['client']}\n\n"
-    message_text += f"📷 Фотограф: {dialog['photographer']}\n\n"
 
     # Для диалогов с единственным вариантом "далее"
     if len(dialog["options"]) == 1 and dialog["options"][0].lower() == "далее":
