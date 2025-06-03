@@ -141,7 +141,7 @@ async def quest_12(callback: types.CallbackQuery, state: FSMContext):
 
     # Данные видео
     video_data = {
-        "file_id": "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ",
+        "file_id": "BAACAgIAAxkBAAJfJ2g-6N8PMxg_GI4h6xEghM3fvJGqAAIYbwACS7X4SSJYam1so7rwNgQ",
         "description": "Квест 12. Привыкни к аппарату\n🔧Посмотри видео и будь готов к тесту"
     }
 
