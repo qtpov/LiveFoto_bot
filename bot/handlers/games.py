@@ -38,14 +38,14 @@ async def check_user_access(msg: types.Message | types.CallbackQuery) -> tuple[b
 
 
 @router.callback_query(F.data == "games")
-async def send_mini_games(callback: types.CallbackQuery):
+async def send_mini_games(callback: types.CallbackQuery, state: FSMContext):
     access, user = await check_user_access(callback)
     if not access:
         await callback.answer()
         return
 
     if user.day == 2:
-        await start_quiz_game(callback)
+        await start_quiz_game(callback, state)
     elif user.day == 3:
         await show_games_menu(callback.message)
     else:
@@ -76,11 +76,11 @@ async def show_games_menu(message: types.Message):
             callback_data="game_quiz"
         ),
         types.InlineKeyboardButton(
-            text="Своя игра",
+            text="Своя фотоигра",
             callback_data="game_own"
         ),
         types.InlineKeyboardButton(
-            text="Срез знаний",
+            text="Супер тест",
             callback_data="game_knowledge"
         ),
         types.InlineKeyboardButton(

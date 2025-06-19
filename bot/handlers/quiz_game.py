@@ -109,9 +109,11 @@ QUESTIONS = [
     }
 ]
 
+
 @router.callback_query(F.data.startswith("quiz_answer_"))
 async def handle_quiz_answer(callback: CallbackQuery, state: FSMContext):
     await process_quiz_answer(callback, state)
+
 
 async def start_quiz_game(callback: CallbackQuery, state: FSMContext):
     await state.set_state(QuizGame.waiting_for_answer)
@@ -129,16 +131,23 @@ async def ask_question(message: types.Message, state: FSMContext):
 
     question_data = QUESTIONS[question_index]
 
+    # Формируем текст сообщения с вопросом и вариантами ответов
+    question_text = f"Вопрос {question_index + 1}/{len(QUESTIONS)}:\n\n{question_data['question']}\n\n"
+    for option in question_data["options"]:
+        question_text += f"{option}\n"
+
+    # Создаем кнопки с буквами ответов (А, Б, В, Г)
     builder = InlineKeyboardBuilder()
-    for i, option in enumerate(question_data["options"]):
+    for i in range(len(question_data["options"])):
+        letter = chr(1040 + i)  # 1040 - код буквы 'А' в Unicode
         builder.add(types.InlineKeyboardButton(
-            text=option,
+            text=letter,
             callback_data=f"quiz_answer_{i}"
         ))
-    builder.adjust(1)
+    builder.adjust(4)  # Размещаем все кнопки в один ряд
 
     await message.edit_text(
-        f"Вопрос {question_index + 1}/{len(QUESTIONS)}:\n\n{question_data['question']}",
+        question_text,
         reply_markup=builder.as_markup()
     )
 
@@ -154,8 +163,8 @@ async def process_quiz_answer(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Правильно! ✅")
     else:
         correct_index = QUESTIONS[question_index]["correct"]
-        correct_answer = QUESTIONS[question_index]["options"][correct_index]
-        await callback.answer(f"Неправильно! ❌ Правильный ответ: {correct_answer}")
+        correct_letter = chr(1040 + correct_index)  # Преобразуем индекс в букву
+        await callback.answer(f"Неправильно! ❌ Правильный ответ: {correct_letter}")
 
     await state.update_data(
         current_question=question_index + 1,

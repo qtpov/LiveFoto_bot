@@ -146,7 +146,7 @@ async def quest_12(callback: types.CallbackQuery, state: FSMContext):
     }
 
     # Отправляем видео с описанием
-    sent_message = await callback.message.answer_photo(
+    sent_message = await callback.message.answer_video(
         video_data["file_id"],
         caption=video_data["description"],
         parse_mode="Markdown"
