@@ -131,6 +131,7 @@ async def next_quest(callback: types.CallbackQuery, state: FSMContext):
 
         # Запускаем новый квест
         await globals()[f"quest_{next_quest_id}"](callback, state)
+        await track_quest_time(callback.from_user.id, next_quest_id, is_start=True, state=state)
     else:
         await callback.message.answer("Все квесты на сегодня выполнены! 🎉")
         await state.clear()
@@ -185,6 +186,9 @@ async def handle_quests_button(callback: types.CallbackQuery, state: FSMContext)
 async def start_quest(callback: types.CallbackQuery, state: FSMContext, quest_id: int):
     await state.set_state(QuestState.waiting_for_answer)
     await state.update_data(current_question=1, correct_count=0, current_quest_id=quest_id)
+
+    await track_quest_time(callback.from_user.id, quest_id, is_start=True, state=state)
+
     await globals()[f"quest_{quest_id}"](callback, state)
 
 # Обработчик кнопки "Начать квесты"
@@ -915,6 +919,7 @@ async def send_for_moderation_quest6(callback: types.CallbackQuery, state: FSMCo
         "✅ Фото отправлено на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
+    await track_quest_time(callback.from_user.id, 6, is_start=False, state=state)
     await state.clear()
     await callback.answer()
 
@@ -1949,6 +1954,7 @@ async def send_colleagues_to_moderation(message: types.Message, state: FSMContex
         "✅ Данные о коллегах отправлены на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
+    await track_quest_time(message.from_user.id, 9, is_start=False, state=state)
     await state.clear()
 
 
@@ -2260,6 +2266,7 @@ async def send_for_moderation(callback: types.CallbackQuery, state: FSMContext):
         "✅ Все фото отправлены на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
+    await track_quest_time(callback.from_user.id, 5, is_start=False, state=state)
     await state.clear()
     await callback.answer()
 
@@ -2913,6 +2920,7 @@ async def finish_quest11(callback: types.CallbackQuery, state: FSMContext):
         "✅ Ваш фидбек отправлен. Спасибо за участие!", reply_markup=get_day_finish_keyboard(11)
 
     )
+    await track_quest_time(callback.from_user.id, 11, is_start=False, state=state)
 
 
     await state.clear()

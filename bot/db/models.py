@@ -36,6 +36,8 @@ class UserResult(Base):
     state = Column(String, nullable=False)
     attempt = Column(Integer, default=1)
     result = Column(Integer, default=0)  # Количество верных ответов
+    start_time = Column(DateTime)  # Время начала квеста
+    completion_time = Column(Integer)  # Время выполнения в секундах
 
 class Achievement(Base):
     __tablename__ = "achievements"

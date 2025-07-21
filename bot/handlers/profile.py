@@ -48,6 +48,8 @@ async def show_profile(user_id: int, message_or_callback: types.Message | types.
     # Отправляем или редактируем сообщение
     if isinstance(message_or_callback, types.CallbackQuery):
         await message_or_callback.message.edit_text(text, parse_mode="Markdown", reply_markup=profile_keyboard())
+        #Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message
+
     else:
         await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=profile_keyboard())
 

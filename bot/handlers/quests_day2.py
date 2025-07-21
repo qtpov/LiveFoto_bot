@@ -85,11 +85,48 @@ async def get_current_day(user_id: int):
         return user.day
 
 
-# Функция для завершения квеста
-async def finish_quest(callback: types.CallbackQuery, state: FSMContext, correct_count, total_questions,
-                       current_quest_id):
-    user_data = await state.get_data()
+async def track_quest_time(user_id: int, quest_id: int, is_start: bool, state: FSMContext = None):
+    async with SessionLocal() as session:
+        # Получаем последнюю запись о попытке
+        user_result = await session.execute(
+            select(UserResult)
+            .filter(
+                UserResult.user_id == user_id,
+                UserResult.quest_id == quest_id
+            )
+            .order_by(UserResult.attempt.desc())
+        )
+        user_result = user_result.scalars().first()
 
+        if is_start:
+            # Если это начало квеста
+            if user_result:
+                user_result.start_time=datetime.datetime.now()
+                await session.commit()
+            else:
+                # Первая попытка
+                new_result = UserResult(
+                    user_id=user_id,
+                    quest_id=quest_id,
+                    state="не выполнен",
+                    attempt=1,
+                    result=0,
+                    start_time=datetime.datetime.now()
+                )
+                session.add(new_result)
+        else:
+            # Если это окончание квеста
+            if user_result and user_result.start_time:
+                completion_time = (datetime.datetime.now()- user_result.start_time).total_seconds()
+                user_result.completion_time = int(completion_time)
+
+        await session.commit()
+
+
+# Функция для завершения квеста
+async def finish_quest(callback: types.CallbackQuery, state: FSMContext, correct_count, total_questions, current_quest_id):
+    user_data = await state.get_data()
+    await track_quest_time(callback.from_user.id, current_quest_id, is_start=False, state=state)
     # Удаляем все сообщения, связанные с текущим квестом
     try:
         photo_message_ids = user_data.get("photo_message_ids", [])
@@ -623,6 +660,7 @@ async def finish_quest13(callback: types.CallbackQuery, state: FSMContext):
         "✅ Все фото отправлены на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
+    await track_quest_time(callback.from_user.id, 13, is_start=False, state=state)
     await state.clear()
     await callback.answer()
 
@@ -923,6 +961,8 @@ async def finish_quest14(callback: types.CallbackQuery, state: FSMContext):
         "✅ Все фото отправлены на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
+
+    await track_quest_time(callback.from_user.id, 14, is_start=False, state=state)
     await state.clear()
     await callback.answer()
 
@@ -1235,6 +1275,7 @@ async def finish_quest15(message: types.Message, state: FSMContext):
         "✅ Все фото отправлены на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
+    await track_quest_time(message.from_user.id, 15, is_start=False, state=state)
     await state.clear()
 
 
@@ -1815,6 +1856,7 @@ async def finish_quest16(callback: types.CallbackQuery, state: FSMContext):
             reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 16)
         )
         await session.commit()
+    await track_quest_time(callback.from_user.id, 16, is_start=False, state=state)
 
     await state.update_data(question_message_id=message.message_id)
     await state.clear()
@@ -1986,7 +2028,7 @@ async def finish_quest17(callback: types.CallbackQuery, state: FSMContext):
         )
 
         await session.commit()
-
+    await track_quest_time(callback.from_user.id, 17, is_start=False, state=state)
     await state.update_data(question_message_id=message.message_id)
     await state.clear()
 
@@ -2274,7 +2316,7 @@ async def finish_quest18(message: Union[types.Message, types.CallbackQuery], sta
         "✅ Все фото отправлены на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
-
+    await track_quest_time(callback.from_user.id, 18, is_start=False, state=state)
     # Очищаем состояние
     await state.clear()
 
@@ -2634,7 +2676,7 @@ async def finish_quest19(callback: types.CallbackQuery, state: FSMContext):
         message_text,
         reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 19)
     )
-
+    await track_quest_time(callback.from_user.id, 19, is_start=False, state=state)
     await state.update_data(question_message_id=message.message_id)
     await state.clear()
 
@@ -2938,7 +2980,7 @@ async def finish_quest20(event: Union[types.Message, types.CallbackQuery], state
         "Фото отправлены на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
-
+    await track_quest_time(callback.from_user.id, 20, is_start=False, state=state)
     # Очищаем состояние
     await state.clear()
 
@@ -3178,6 +3220,7 @@ async def send_colleagues_to_moderation_21(message: types.Message, state: FSMCon
         "✅ Данные о коллегах отправлены на модерацию. Ожидайте проверки.",
         reply_markup=types.ReplyKeyboardRemove()
     )
+    await track_quest_time(callback.from_user.id, 21, is_start=False, state=state)
     await state.clear()
 
 
@@ -3598,6 +3641,7 @@ async def finish_quest22(update: Union[types.Message, types.CallbackQuery], stat
                 "✅ Ваши ответы отправлены на модерацию",
                 reply_markup=types.ReplyKeyboardRemove()
             )
+            await track_quest_time(callback.from_user.id, 22, is_start=False, state=state)
 
         except Exception as e:
             logging.error(f"Ошибка отправки модератору: {str(e)}")
@@ -3836,6 +3880,7 @@ async def finish_retry_quest(update: Union[types.Message, types.CallbackQuery], 
                 "✅ Ваши ответы отправлены на модерацию",
                 reply_markup=types.ReplyKeyboardRemove()
             )
+            await track_quest_time(callback.from_user.id, 22, is_start=False, state=state)
 
         except Exception as e:
             logging.error(f"Ошибка отправки модератору: {str(e)}")
@@ -4133,7 +4178,7 @@ async def finish_quest23(callback: types.CallbackQuery, state: FSMContext):
                 message_text = f"✅ Квест 23 завершен!\nПравильных ответов: {correct_answers} из {total_questions}"
         else:
             message_text = f"Есть ошибки, попробуй заново\nВерных ответов: {correct_answers} из {total_questions}"
-
+        await track_quest_time(callback.from_user.id, 23, is_start=False, state=state)
         await session.commit()
 
     # Отправляем результат пользователю
@@ -4613,6 +4658,7 @@ async def finish_quest24(update: Union[types.CallbackQuery, types.Message], stat
                 f"Успешных продаж: {success_count} из 5\n"
                 f"Вы не выполнили квест полностью и не можете его переделать."
             )
+        await track_quest_time(callback.from_user.id, 24, is_start=False, state=state)
 
         await session.commit()
 
@@ -4867,7 +4913,7 @@ async def finish_quest25(callback: types.CallbackQuery, state: FSMContext):
         message_text,
         reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 25)
     )
-
+    await track_quest_time(callback.from_user.id, 25, is_start=False, state=state)
     await state.update_data(question_message_id=message.message_id)
     await state.clear()
 
@@ -5047,6 +5093,7 @@ async def finish_quest26(message: types.Message, state: FSMContext):
         "✅ Спасибо за фидбек! Хорошенько отдохни и встретимся завтра!",
         reply_markup=get_day_finish_keyboard(26)
     )
+    await track_quest_time(callback.from_user.id, 26, is_start=False, state=state)
     await state.clear()
 
 
