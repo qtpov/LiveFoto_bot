@@ -27,8 +27,8 @@ async def start(message: types.Message):
 
     if not user:
         await message.answer(
-            f'Здравствуйте {message.from_user.full_name}!\nДля продолжения необходимо пройти регистрацию,'
-            f' для продолжения нажмите кнопку снизу', reply_markup=reg_keyboard())
+            f'Привет {message.from_user.full_name}✨\nПогнали регаться — жми на кнопку снизу и не тормози 👇',
+            reply_markup=reg_keyboard())
     else:
         if message.from_user.id == int(admin_chat_id):
             await message.answer(f"С возвращением, {user.full_name}!\nВам доступна Админ-панель", reply_markup=admin_start_keyboard())

@@ -159,16 +159,16 @@ async def show_today_quests(callback: types.CallbackQuery, state: FSMContext):
         user_results_dict = {result.quest_id: result for result in user_results}
 
         # Формируем текст с квестами и их статусами
-        quests_text = "📋 Квесты на сегодня:\n"
+        quests_text = "📜 Квесты на сегодня:\n"
         for quest_id, quest_name in quests_today:
-            status = "Не выполнен"
+            status = "ещё нет"
             if quest_id in user_results_dict:
                 if user_results_dict[quest_id].state == "выполнен":
-                    status = "✅ Выполнен"
+                    status = "✅"
                 if user_results_dict[quest_id].state == "на модерации":
                     status = "🕒 На модерации"
             quests_text += f"{quest_id}. {quest_name} — {status}\n"
-
+        quests_text += '👉 Готов/а квестить?'
         # Отправляем сообщение с квестами
         await callback.message.edit_text(quests_text, reply_markup=quests_list_keyboard())
 

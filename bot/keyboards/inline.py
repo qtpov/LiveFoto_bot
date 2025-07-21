@@ -52,8 +52,8 @@ def go_admin_panel_keyboard():
 # Клавиатура для списка квестов
 def quests_list_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Начать квесты", callback_data="start_quests_confirm")],
-        [InlineKeyboardButton(text="Профиль", callback_data="profile")]
+        [InlineKeyboardButton(text="🚀 Начать квесты", callback_data="start_quests_confirm")],
+        [InlineKeyboardButton(text="👤 Профиль", callback_data="profile")]
     ])
 
 def knowledge_keyboard():
