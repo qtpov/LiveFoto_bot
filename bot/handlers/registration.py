@@ -34,7 +34,7 @@ async def delete_previous_messages(bot, chat_id: int, message_id: int):
 # Начало заполнения анкеты
 @router.callback_query(F.data == "start_profile_form")
 async def start_profile_form(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text("Пожалуйста, введите ваше ФИО:")
+    await callback.message.edit_text("📝 Введите ФИО:")
     await state.set_state(ProfileForm.full_name)
     await callback.answer()
 
@@ -48,14 +48,14 @@ async def process_full_name(message: types.Message, state: FSMContext, bot):
         # Удаляем сообщение с ответом пользователя
         await delete_previous_messages(bot, message.chat.id, message.message_id)
 
-        await message.answer("Ошибка: ФИО должно содержать только кириллицу и пробелы.")
+        await message.answer("Как в паспорте, но можно без стресса 😅")
         return
 
     # Удаляем сообщение с ответом пользователя
     await delete_previous_messages(bot, message.chat.id, message.message_id)
 
     await state.update_data(full_name=message.text)
-    await message.answer("Введите вашу дату рождения (в формате ДД.ММ.ГГГГ):")
+    await message.answer("📅 Дата рождения:")
     await state.set_state(ProfileForm.birth_date)
 
 # Обработка даты рождения
@@ -70,11 +70,11 @@ async def process_birth_date(message: types.Message, state: FSMContext, bot):
         await delete_previous_messages(bot, message.chat.id, message.message_id)
 
         await state.update_data(birth_date=message.text)
-        await message.answer("Введите ваш номер телефона (в формате +7XXXXXXXXXX):")
+        await message.answer("📱 Телефон:")
         await state.set_state(ProfileForm.phone)
     except ValueError:
         await delete_previous_messages(bot, message.chat.id, message.message_id)
-        await message.answer("Ошибка: Неверный формат даты рождения. Используйте формат ДД.ММ.ГГГГ.")
+        await message.answer("В формате ДД.ММ.ГГГГ, без приколов, пожалуйста 🙃")
 
 # Обработка номера телефона
 @router.message(ProfileForm.phone)
@@ -85,7 +85,8 @@ async def process_phone(message: types.Message, state: FSMContext, bot):
     if not re.match(r'^\+7\d{10}$', message.text):
         # Удаляем сообщение с ответом пользователя
         await delete_previous_messages(bot, message.chat.id, message.message_id)
-        await message.answer("Ошибка: Неверный формат номера телефона. Используйте формат +7XXXXXXXXXX.")
+        await message.answer("Нужен номер в формате +7XXXXXXXXXX.\n"
+                             "Не волнуйся, спамить не будем 🤞")
         return
 
     # Удаляем сообщение с ответом пользователя
@@ -96,7 +97,8 @@ async def process_phone(message: types.Message, state: FSMContext, bot):
                         [InlineKeyboardButton(text="Мужской", callback_data="gender_male")],
                         [InlineKeyboardButton(text="Женский", callback_data="gender_female")]
                         ])
-    await message.answer("Пожалуйста, укажите ваш пол:", reply_markup=keyboard)
+    await message.answer("🚻 Укажи пол:\n"
+                         "Кто ты по вайбу?", reply_markup=keyboard)
     await state.set_state(ProfileForm.gender)
 
 # Обработка пола
@@ -109,7 +111,9 @@ async def process_gender(callback: types.CallbackQuery, state: FSMContext, bot):
         [InlineKeyboardButton(text="Согласен", callback_data="consent_yes")],
         [InlineKeyboardButton(text="Согласна", callback_data="consent_yes")]
     ])
-    await callback.message.edit_text("Cогласие на обработку персональных данных\n"
+    await callback.message.edit_text("🔐 Согласие на обработку данных:\n"
+                                     "Юр. инфа ниже. Всё по-взрослому.\n"
+                                     "Если окей — жми «Согласен» или «Согласна» 👇\n"
                                      "В соответствии с п.1 ст.9 закона РФ от 27.-7.2006 №152-ФЗ «О персональных данных»"
                                      " разрешение на обработку моих персональных данных, хранение и использования исключительно"
                                      " для решения вопроса о приеме меня на работу, о моем обучении и продвижении, а так же в других целях"
@@ -186,7 +190,9 @@ async def process_personal_data_consent(callback: types.CallbackQuery, state: FS
                 'Вы успешно прошли регистрацию'
             )
 
-            await callback.message.answer("Спасибо! Ваша анкета успешно сохранена.", reply_markup=go_profile_keyboard())
+            await callback.message.answer("✅ Готово!\n"
+                                          "Анкета залетела в систему успешно 🎉\n"
+                                          "Можно чекнуть свой профиль:", reply_markup=go_profile_keyboard())
         except ValueError as e:
             await callback.message.answer(f"Ошибка: {e}")
         except Exception as e:

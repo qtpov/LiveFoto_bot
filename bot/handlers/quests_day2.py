@@ -436,13 +436,13 @@ async def quest_13(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "watch_again_13")
 async def watch_again_13(callback: types.CallbackQuery, state: FSMContext):
     # Показываем видео с настройками еще раз
-    video_file_id = "AgACAgIAAxkBAAIiQmfq5liYmQZwzE13hjT7jre2xq4LAAI89DEb86JZS5r1n5ZAZwXuAQADAgADeAADNgQ"
+    video_file_id = "BAACAgIAAxkBAAJfJ2g-6N8PMxg_GI4h6xEghM3fvJGqAAIYbwACS7X4SSJYam1so7rwNgQ"
 
     await callback.message.delete()
-    sent_message = await callback.message.answer_photo(
+    sent_message = await callback.message.answer_video(
         video_file_id,
         caption="🔧 Настройки фотоаппарата"
-    )#заменить на видео
+    )
 
     # Отправляем кнопку для продолжения
     message = await callback.message.answer(
@@ -1914,25 +1914,27 @@ async def show_quest17_exercise(callback: types.CallbackQuery, state: FSMContext
             "text": "1. Вращение головой\n\n"
                     "Встаньте прямо, опустите руки.\n"
                     "Медленно вращайте головой по кругу: влево, вниз, вправо, назад.\n"
-                    "Повторите 5 раз влево, затем 5 раз вправо."
+                    "Повторите 5 раз влево, затем 5 раз вправо.",
+            "photo_id": "AgACAgIAAxkBAAJtCWhv0iKUph8u0CMjwoQY02bArFRwAAJ5_TEbpB14S-yWUveig2bXAQADAgADeQADNgQ" #добавить file id
         },
         2: {
             "text": "2. Вращение плечами\n\n"
                     "Согните руки в локтях, положите кисти на плечи.\n"
-                    "Делайте круговые движения плечами: 5 раз вперёд, 5 раз назад."
+                    "Делайте круговые движения плечами: 5 раз вперёд, 5 раз назад.",
+            "photo_id": "AgACAgIAAxkBAAJtC2hv0ikDqcHhrybPhLFjt-rN1w5BAAJ6_TEbpB14S00OjdIQ2cLMAQADAgADeQADNgQ"
         },
         3: {
             "text": "3. Поднятие ног к груди\n\n"
                     "Поднимите правую ногу, согнув её в колене, и подтяните к груди руками.\n"
                     "Задержитесь на секунду, затем опустите.\n"
-                    "Повторите 3 раза для каждой ноги."
+                    "Повторите 3 раза для каждой ноги.",
+            "photo_id": "AgACAgIAAxkBAAJtDWhv0jA1DAdAkSDlK1aFWO_f3GIMAAJ7_TEbpB14SyDI7A8BvPNeAQADAgADeQADNgQ"
         }
     }
 
     # Отправляем видео упражнения
     exercise_data = exercises[current_exercise]
-    sent_message = await callback.message.answer(
-        exercise_data["text"]
+    sent_message = await callback.message.answer_photo(exercise_data["photo_id"], caption=exercise_data["text"]
     )
 
     # Отправляем кнопку подтверждения выполнения
