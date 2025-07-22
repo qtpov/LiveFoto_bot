@@ -15,7 +15,7 @@ from .states import QuestState
 from bot.configurate import settings
 from bot.db.crud import update_user_level
 from .moderation import give_achievement, get_quest_finish_keyboard
-from .quests_day2 import finish_quest
+from .quests_day2 import finish_quest, track_quest_time
 from bot.db.models import User
 
 
@@ -73,13 +73,28 @@ async def finish_quest3(callback: types.CallbackQuery, state: FSMContext,
 
     # Сохраняем результат в БД
     async with SessionLocal() as session:
-        result = UserResult(
-            user_id=callback.from_user.id,
-            quest_id=quest_id,
-            result=correct_count,
-            state="выполнен"
+
+        user_result = await session.execute(
+            select(UserResult)
+            .filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == quest_id
+            )
+            .order_by(UserResult.attempt.desc())
         )
-        session.add(result)
+        user_result = user_result.scalars().first()
+
+        if not user_result:
+            result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=quest_id,
+                result=correct_count,
+                state="выполнен"
+            )
+            session.add(result)
+        else:
+            user_result.result = correct_count
+            user_result.state="выполнен"
 
         # Выдаем ачивку если все ответы верные
         if correct_count == total_questions:
@@ -92,6 +107,7 @@ async def finish_quest3(callback: types.CallbackQuery, state: FSMContext,
         f"Вы ответили правильно на {correct_count} из {total_questions} вопросов!",
         reply_markup=get_quest_finish_keyboard(correct_count, total_questions, quest_id)
     )
+    await track_quest_time(callback.from_user.id, quest_id, is_start=False, state=state)
     await state.clear()
 
 
@@ -99,6 +115,7 @@ async def finish_quest3(callback: types.CallbackQuery, state: FSMContext,
 async def quest_27(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     current_question = user_data.get("current_question", 1)
+
 
     # Удаляем предыдущие сообщения
     try:
@@ -410,7 +427,7 @@ async def process_quest28_video(message: types.Message, state: FSMContext):
     await message.answer(
         "🎥 Видео отправлено на модерацию. Вы получите уведомление, когда модератор проверит вашу работу.\n"
     )
-
+    await track_quest_time(message.from_user.id, 28, is_start=False, state=state)
     await state.clear()
 
 @router.message(QuestState.waiting_for_quest28_video)
@@ -482,7 +499,7 @@ async def back_to_quest_29(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "start_photo_hunt_29", QuestState.waiting_for_answer)
 async def start_photo_hunt_29(callback: types.CallbackQuery, state: FSMContext):
     # Отправляем сообщение с таймером
-    timer_msg = await callback.message.answer(
+    timer_msg = await callback.message.edit_text(
         "⏱ Осталось времени: 15:00",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="СТОП", callback_data="stop_photo_hunt_29")]
@@ -641,7 +658,7 @@ async def submit_photos_29(callback: types.CallbackQuery, state: FSMContext):
         return
 
     # Просто запрашиваем фидбек, не сохраняя фото в БД
-    await callback.message.answer(
+    await callback.message.edit_text(
         "Фотографии готовы к отправке. Какие были трудности?"
     )
     # ,
@@ -719,103 +736,37 @@ async def handle_feedback_text(message: types.Message, state: FSMContext):
     await message.answer(
         "✅ Спасибо! Ваши фото и комментарии отправлены на проверку."
     )
+    await track_quest_time(message.from_user.id, 29, is_start=False, state=state)
     await state.clear()
-
-
-@router.callback_query(F.data == "skip_feedback_29", QuestState.waiting_feedback_text)
-async def skip_feedback_29(callback: types.CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    photos = user_data.get("photos", [])
-
-    # Сохраняем в БД
-    async with SessionLocal() as session:
-        user_result = await session.execute(
-            select(UserResult).filter(
-                UserResult.user_id == callback.message.from_user.id,
-                UserResult.quest_id == 29
-            )
-        )
-        user_result = user_result.scalars().first()
-
-        if not user_result:
-            user_result = UserResult(
-                user_id=message.from_user.id,
-                quest_id=29,
-                state="на модерации",
-                attempt=1,
-                result=len(photos)
-            )
-            session.add(user_result)
-        else:
-            user_result.state = "на модерации"
-            user_result.result = len(photos)
-            user_result.attempt += 1
-
-        await session.commit()
-
-    # Отправляем данные модератору без фидбека
-    username = f"@{callback.from_user.username}" if callback.from_user.username else f"ID: {callback.from_user.id}"
-
-    caption = (
-        f"📸 Квест 29 - Фотоохота\n"
-        f"👤 Автор: {callback.from_user.full_name} ({username})\n"
-        f"📷 Количество фото: {len(photos)}\n"
-        f"💬 Фидбек: не предоставлен\n"
-        f"🕒 Время отправки: {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}"
-    )
-
-    if photos:
-        try:
-
-
-            if len(photos) > 1:
-                album = MediaGroupBuilder()
-                for photo in photos:
-                    album.add_photo(media=photo)
-                await callback.bot.send_media_group(admin_chat_id, media=album.build())
-        except Exception as e:
-            logging.error(f"Ошибка отправки фото: {e}")
-    else:
-        await callback.bot.send_message(admin_chat_id, caption)
-
-    await callback.bot.send_message(
-        admin_chat_id,
-        caption,
-        reply_markup=moderation_keyboard(callback.from_user.id, 29)
-    )
-
-    await callback.message.answer(
-        "✅ Ваши фото отправлены на проверку!"
-    )
-    await state.clear()
-    await callback.answer()
 
 @router.callback_query(F.data == "no_people_29")
 async def no_people_29(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer(
+    await callback.message.edit_text(
         "Не переживай, они обязательно придут! Как только будешь готов нажимай 'Заново' и отправляйся в фотозону!",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Заново", callback_data="restart_quest_29")]
         ])
     )
+    await track_quest_time(callback.from_user.id, 29, is_start=False, state=state)
     await callback.answer()
 
 
 @router.callback_query(F.data == "all_refused_29")
 async def all_refused_29(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer(
+    await callback.message.edit_text(
         "Не стоит расстраиваться! Почитай рекомендации по работе в фотозоне, они обязательно помогут!",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Рекомендации", callback_data="show_recommendations_29")],
             [InlineKeyboardButton(text="Заново", callback_data="restart_quest_29")]
         ])
     )
+    await track_quest_time(callback.from_user.id, 29, is_start=False, state=state)
     await callback.answer()
 
 
 @router.callback_query(F.data == "custom_reason_29")
 async def custom_reason_29(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer(
+    await callback.message.edit_text(
         "Напиши, почему ты не принес фотографии:",
         reply_markup=None
     )
@@ -1040,15 +991,29 @@ async def handle_sales_amount(message: types.Message, state: FSMContext):
 
         # Сохраняем в БД
         async with SessionLocal() as session:
-            result = UserResult(
-                user_id=message.from_user.id,
-                quest_id=30,
-                result=amount,
-                state="выполнен"
-            )
-            session.add(result)
-            await session.commit()
 
+            user_result = await session.execute(
+                select(UserResult)
+                .filter(
+                    UserResult.user_id == message.from_user.id,
+                    UserResult.quest_id == 30
+                )
+                .order_by(UserResult.attempt.desc())
+            )
+            user_result = user_result.scalars().first()
+
+            if not user_result:
+                result = UserResult(
+                    user_id=callback.from_user.id,
+                    quest_id=30,
+                    result=amount,
+                    state="выполнен"
+                )
+                session.add(result)
+            else:
+                user_result.result = amount
+                user_result.state = "выполнен"
+            await session.commit()
         # Отправляем модератору
         username = f"@{message.from_user.username}" if message.from_user.username else f"ID: {message.from_user.id}"
         caption = (
@@ -1089,6 +1054,7 @@ async def handle_sales_amount(message: types.Message, state: FSMContext):
             reply_markup=get_quest_finish_keyboard(1, 1, 30)
         )
         await state.clear()
+        await track_quest_time(message.from_user.id, 30, is_start=False, state=state)
 
     except ValueError:
         await message.answer(
@@ -1279,13 +1245,17 @@ async def handle_quest31_answer(callback: types.CallbackQuery, state: FSMContext
                 "Ты отлично разбираешься в ценности кадра!",
                 reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 31)
             )
+            await track_quest_time(callback.from_user.id, 31, is_start=False, state=state)
+
         else:
             await callback.message.answer(
                 f"Тебе стоит поработать над пониманием ценности кадра ({correct_answers}/{total_questions} верных ответов)",
                 reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 31)
             )
+            await track_quest_time(callback.from_user.id, 31, is_start=False, state=state)
 
     await callback.answer()
+
 
 @router.callback_query(F.data == "restart_quest_31")
 async def restart_quest_31(callback: types.CallbackQuery, state: FSMContext):
@@ -1296,14 +1266,6 @@ async def restart_quest_31(callback: types.CallbackQuery, state: FSMContext):
     await next_question_31(callback, state)
 
 
-@router.callback_query(F.data == "finish_quest_31")
-async def finish_quest_31(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer(
-        "Квест завершен!",
-        reply_markup=get_quest_finish_keyboard(1, 1, 31)
-    )
-    await state.clear()
-    await callback.answer()
 
 
 def create_quiz_keyboard(options: list[str], prefix: str) -> InlineKeyboardMarkup:
@@ -1531,7 +1493,7 @@ async def handle_quest32_answer(callback: types.CallbackQuery, state: FSMContext
                     [InlineKeyboardButton(text="Начать заново", callback_data="restart_quest_32")]
                 ])
             )
-
+        await track_quest_time(callback.from_user.id, 32, is_start=False, state=state)
         await state.update_data(
             is_first_attempt=False,
             completion_message_id=completion_msg.message_id
@@ -1892,13 +1854,26 @@ async def finish_sales_quest_33(message: types.Message, state: FSMContext):
 
     # Сохраняем в БД
     async with SessionLocal() as session:
-        result = UserResult(
-            user_id=message.from_user.id,
-            quest_id=33,
-            result=3,  # 3 успешные продажи
-            state="на модерации"
+        user_result = await session.execute(
+            select(UserResult)
+            .filter(
+                UserResult.user_id == message.from_user.id,
+                UserResult.quest_id == 33
+            )
+            .order_by(UserResult.attempt.desc())
         )
-        session.add(result)
+        user_result = user_result.scalars().first()
+        if not user_result:
+            result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=33,
+                result=0,
+                state="не выполнен"
+            )
+            session.add(result)
+        else:
+            user_result.result = 3
+            user_result.state = "выполнен"
         await session.commit()
 
     # Отправляем чеки и комментарии модератору
@@ -1936,9 +1911,9 @@ async def finish_sales_quest_33(message: types.Message, state: FSMContext):
 
     await message.answer(
         "🎉 Ты отлично справился! У тебя хорошие навыки продаж!\n"
-        "Задание завершено.",
-        reply_markup=get_quest_finish_keyboard(3, 3, 33)
+        "Задание завершено."
     )
+    await track_quest_time(message.from_user.id, 33, is_start=False, state=state)
     await state.clear()
 
 
@@ -1959,26 +1934,41 @@ async def force_finish_sales_quest_33(callback: types.CallbackQuery, state: FSMC
         )
         await callback.answer()
 
-    @outer.callback_query(F.data == "confirm_early_finish_33", QuestState.waiting_for_answer)
-    async def confirm_early_finish_33(callback: types.CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "confirm_early_finish_33", QuestState.waiting_for_answer)
+async def confirm_early_finish_33(callback: types.CallbackQuery, state: FSMContext):
 
-        data = await state.get_data()
+    data = await state.get_data()
     successful_sales = data.get("successful_sales", 0)
 
     async with SessionLocal() as session:
-        result = UserResult(
-            user_id=callback.from_user.id,
-            quest_id=33,
-            result=successful_sales,
-            state="не выполнен"
+        user_result = await session.execute(
+            select(UserResult)
+            .filter(
+                UserResult.user_id == callback.from_user.id,
+                UserResult.quest_id == 33
+            )
+            .order_by(UserResult.attempt.desc())
         )
-        session.add(result)
+        user_result = user_result.scalars().first()
+        if not user_result:
+            result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=33,
+                result=successful_sales,
+                state="не выполнен"
+            )
+            session.add(result)
+        else:
+            user_result.result = successful_sales
+            user_result.state = "выполнен"
         await session.commit()
+
 
     await callback.message.answer(
         f"Вы завершили задание досрочно. Успешных продаж: {successful_sales}/3",
         reply_markup=get_quest_finish_keyboard(successful_sales, 3, 33)
     )
+    await track_quest_time(callback.from_user.id, 33, is_start=False, state=state)
     await state.clear()
     await callback.answer()
 
@@ -2177,14 +2167,28 @@ async def finish_feedback_34(source: Union[types.CallbackQuery, types.Message], 
 
     # Save to DB
     async with SessionLocal() as session:
-        result = UserResult(
-            user_id=source.from_user.id,
-            quest_id=34,
-            result=1,
-            state="выполнен"
+        user_result = await session.execute(
+            select(UserResult)
+            .filter(
+                UserResult.user_id == source.from_user.id,
+                UserResult.quest_id == 34
+            )
+            .order_by(UserResult.attempt.desc())
         )
-        session.add(result)
+        user_result = user_result.scalars().first()
+        if not user_result:
+            result = UserResult(
+                user_id=source.from_user.id,
+                quest_id=34,
+                result=1,
+                state="выполнен"
+            )
+            session.add(result)
+        else:
+            user_result.result = 1
+            user_result.state="выполнен"
         await session.commit()
+
 
     # Respond to user
     if isinstance(source, types.CallbackQuery):
@@ -2198,6 +2202,7 @@ async def finish_feedback_34(source: Union[types.CallbackQuery, types.Message], 
             reply_markup=get_quest_finish_keyboard(1, 1, 34)
         )
     await give_achievement(source.from_user.id, 34, session)
+    await track_quest_time(source.from_user.id, 34, is_start=False, state=state)
 
     await state.clear()
 

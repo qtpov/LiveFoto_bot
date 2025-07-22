@@ -114,6 +114,13 @@ async def get_analytics(callback: types.CallbackQuery):
             )
             results = results.scalars().all()
 
+            # Рассчитываем среднее время выполнения
+            completion_times = [r.completion_time for r in results if r.completion_time is not None]
+            avg_completion_time = sum(completion_times) / len(completion_times) if completion_times else 0
+
+            # Форматируем время в минуты:секунды
+            minutes, seconds = divmod(int(avg_completion_time), 60)
+            avg_time_str = f"{minutes}:{seconds:02d}"
 
             name = user.profile.full_name if user.profile else user.full_name
             report_data.append({
@@ -121,7 +128,8 @@ async def get_analytics(callback: types.CallbackQuery):
                 "ФИО": name,
                 "Выполнено заданий": len(results),
                 "Уровень": user.level,
-                "День стажировки": user.day
+                "День стажировки": user.day,
+                "Среднее время выполнения (м:с)": avg_time_str
             })
 
         # Создаем Excel файл

@@ -166,7 +166,7 @@ def get_quest_finish_keyboard(correct_count, total_questions, current_quest_id):
     builder = InlineKeyboardBuilder()
     if correct_count < total_questions:
         builder.add(types.InlineKeyboardButton(
-            text="Переделать",
+            text="🔁 Переделать",
             callback_data=f"retry_quest_{current_quest_id}"
         ))
     else:
@@ -279,7 +279,7 @@ async def process_comment(message: types.Message, state: FSMContext):
 
             await message.bot.send_message(
                 user_data["target_user_id"],
-                f"✅ Ваш квест {user_data['quest_id']} принят!\nПоздравляем! Вы получили ачивку за выполнение квеста!\nКомментарий: {comment}",
+                f"🔥 Красавчик! Квест {user_data['quest_id']} принят!\n📸 Ачивка в кармане, ещё один шаг к мастерству фотосамурая пройден.\nКомментарий: {comment}",
                 reply_markup = get_quest_finish_keyboard(100, 100, user_data["quest_id"])
             )
 
@@ -287,7 +287,7 @@ async def process_comment(message: types.Message, state: FSMContext):
             await message.bot.send_message(
                 user_data["target_user_id"],
                 f"❌ Квест {user_data['quest_id']} отклонен\nПричина: {comment}\n\n"
-                "Пожалуйста, исправьте и отправьте заново.", reply_markup=get_quest_finish_keyboard(0, 100, user_data["quest_id"])
+                "Попробуй ещё раз — у тебя точно получится!", reply_markup=get_quest_finish_keyboard(0, 100, user_data["quest_id"])
             )
 
         await message.answer("Результат отправлен пользователю")

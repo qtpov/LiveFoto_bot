@@ -14,8 +14,8 @@ def profile_keyboard():
 #клавиатура вбора пола
 def gender_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="M", callback_data="Male"),
-         InlineKeyboardButton(text="Ж", callback_data="Female")]
+        [InlineKeyboardButton(text="Мужской", callback_data="Male"),
+         InlineKeyboardButton(text="Женский", callback_data="Female")]
     ])
 #клавиатура для прехода после анкеты
 def reg_keyboard():
@@ -27,13 +27,13 @@ def reg_keyboard():
 #клавиатура перехода в профиль
 def go_profile_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Профиль", callback_data="profile")]
+        [InlineKeyboardButton(text="👤Профиль", callback_data="profile")]
     ])
 #клавиатура админа на старте
 def admin_start_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Админ-панель", callback_data="go_admin_panel")],
-        [InlineKeyboardButton(text="Профиль", callback_data="profile")]
+        [InlineKeyboardButton(text="👤Профиль", callback_data="profile")]
     ])
 
 def admin_panel_keyboard():
