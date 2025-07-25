@@ -79,36 +79,36 @@ def go_quests_keyboard():
 
 def quest1_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="База", callback_data="base"),
-        InlineKeyboardButton(text="Стенд", callback_data="stand")],
-        [InlineKeyboardButton(text="Вход в парк", callback_data="entrance"),
-         InlineKeyboardButton(text="Фуд-корт", callback_data="food-court")],
-        [InlineKeyboardButton(text="Туалет", callback_data="toilet")]
+        [InlineKeyboardButton(text="🧠 База", callback_data="base"),
+        InlineKeyboardButton(text="📦 Стенд", callback_data="stand")],
+        [InlineKeyboardButton(text="🚪 Вход в парк", callback_data="entrance"),
+         InlineKeyboardButton(text="🍔 Фуд-корт", callback_data="food-court")],
+        [InlineKeyboardButton(text="🚻 Туалет", callback_data="toilet")]
     ])
 
 def quest2_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Автоматы", callback_data="Автоматы"),
-        InlineKeyboardButton(text="Батуты", callback_data="Батуты")],
-        [InlineKeyboardButton(text="Трон", callback_data="Трон"),
-         InlineKeyboardButton(text="Лабиринт", callback_data="Лабиринт")],
-        [InlineKeyboardButton(text="Детская", callback_data="Детская")]
+        [InlineKeyboardButton(text="🎮 Автоматы", callback_data="Автоматы"),
+        InlineKeyboardButton(text="🧼 Батуты", callback_data="Батуты")],
+        [InlineKeyboardButton(text="👑 Трон", callback_data="Трон"),
+         InlineKeyboardButton(text="🌀 Лабиринт", callback_data="Лабиринт")],
+        [InlineKeyboardButton(text="🧸 Детская", callback_data="Детская")]
     ])
 
 def quest3_keyboard_after_video():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Приступить", callback_data="complete_video_qw3")]
+        [InlineKeyboardButton(text="🚀 Приступить", callback_data="complete_video_qw3")]
     ])
 
 
 def quest4_keyboard_after_clear():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Далее", callback_data="next_to_items")]
+        [InlineKeyboardButton(text="Далее→", callback_data="next_to_items")]
     ])
 
 def quest4_keyboard_after_trash():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Приступить", callback_data="start_selection")]
+        [InlineKeyboardButton(text="🚀 Далее", callback_data="start_selection")]
     ])
 
 # Клавиатура для выбора цифр
@@ -124,7 +124,7 @@ def quest4_keyboard(selected_numbers: set[int]) -> InlineKeyboardMarkup:
         keyboard.append(buttons[i:i + 3])
 
     # Добавляем кнопку "Готово" в отдельную строку
-    keyboard.append([InlineKeyboardButton(text="Готово", callback_data="done")])
+    keyboard.append([InlineKeyboardButton(text="✅ Готово", callback_data="done")])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -166,14 +166,14 @@ def quest3_keyboard(question_number: int):
 
 def quest5_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Готово", callback_data="start_qw5")]
+        [InlineKeyboardButton(text="✅ Готово", callback_data="start_qw5")]
         #[InlineKeyboardButton(text="Профиль", callback_data="profile")]
     ])
 
 def quest5_finish_keyboard():
     builder = InlineKeyboardBuilder()
     builder.add(InlineKeyboardButton(
-        text="Готово",
+        text="✅ Готово",
         callback_data="finish_quest5"
     ))
     return builder.as_markup()
@@ -181,7 +181,7 @@ def quest5_finish_keyboard():
 def quest6_finish_keyboard():
     builder = InlineKeyboardBuilder()
     builder.add(InlineKeyboardButton(
-        text="Готово",
+        text="✅ Готово",
         callback_data="finish_quest6"
     ))
     return builder.as_markup()
@@ -189,7 +189,7 @@ def quest6_finish_keyboard():
 def quest11_finish_keyboard():
     builder = InlineKeyboardBuilder()
     builder.add(InlineKeyboardButton(
-        text="Готово",
+        text="✅ Готово",
         callback_data="next_quest_12"
     ))
     return builder.as_markup()
@@ -217,8 +217,14 @@ def moderation_keyboard(user_id: int, quest_id: int):
 
 def quest6_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Отправить фото", callback_data="start_qw6")]
+        [InlineKeyboardButton(text="⬆️ Отправить фото", callback_data="start_qw6")]
     ])
+
+def quest7_start_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👉 Начать", callback_data="start_quest7")]
+    ])
+
 
 def quest7_keyboard(options):
     buttons = []
@@ -239,7 +245,7 @@ def quest7_view_next_keyboard():
 def quest7_next_keyboard():
     """Клавиатура для тестового этапа"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Следующий вопрос", callback_data="next_question_test")]
+        [InlineKeyboardButton(text="▶️Следующий вопрос", callback_data="next_question_test")]
     ])
 
 def quest7_finish_keyboard():
@@ -250,7 +256,7 @@ def quest7_finish_keyboard():
 
 def quest8_konspekt_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Конспект", callback_data="quest8_text")]
+        [InlineKeyboardButton(text="📝 Конспек", callback_data="quest8_text")]
     ])
 
 def quest8_start_keyboard():
@@ -278,9 +284,9 @@ def quest9_cancel_keyboard():
 
 def quest9_position_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Фотограф", callback_data="qw9_position_фотограф")],
-        [InlineKeyboardButton(text="Старший смены", callback_data="qw9_position_старший смены")],
-        [InlineKeyboardButton(text="Администратор локации", callback_data="qw9_position_администратор локации")]
+        [InlineKeyboardButton(text="📸 Фотограф", callback_data="qw9_position_фотограф")],
+        [InlineKeyboardButton(text="👑 Старший смены", callback_data="qw9_position_старший смены")],
+        [InlineKeyboardButton(text="🖥 Администратор локации", callback_data="qw9_position_администратор локации")]
     ])
 
 # Добавьте в конец inline.py
@@ -329,40 +335,40 @@ def quest11_rating_keyboard():
 
 def quest11_interview_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Было не совсем понятно, но интересно", callback_data="interview_1")],
-        [InlineKeyboardButton(text="Меня классно встретили, все рассказали", callback_data="interview_2")],
-        [InlineKeyboardButton(text="Собеседования не было", callback_data="interview_3")],
-        [InlineKeyboardButton(text="Было ужасно некомфортно", callback_data="interview_4")]
+        [InlineKeyboardButton(text="Было не совсем ясно, но интересно 🤔", callback_data="interview_🤔")],
+        [InlineKeyboardButton(text="Меня круто встретили, всё чётко объяснили 😎", callback_data="interview_😎")],
+        [InlineKeyboardButton(text="Собеседования не было — и ладно 🤷", callback_data="interview_🤷")],
+        [InlineKeyboardButton(text="Было странно, неудобно и неловко 😬", callback_data="interview_😬")]
     ])
 
 def quest11_reason_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Атмосфера на локации", callback_data="reason_1")],
-        [InlineKeyboardButton(text="Приятная команда", callback_data="reason_2")],
-        [InlineKeyboardButton(text="Хочу стать фотографом", callback_data="reason_3")],
-        [InlineKeyboardButton(text="Интересные условия работы", callback_data="reason_4")],
-        [InlineKeyboardButton(text="Комфортно (рядом с домом и т.д.)", callback_data="reason_5")]
+        [InlineKeyboardButton(text="Атмосфера на локации в стиле “Вау!” 🌟", callback_data="reason_🌟")],
+        [InlineKeyboardButton(text="Приятная команда, как в комиксах 🤝", callback_data="reason_🤝")],
+        [InlineKeyboardButton(text="Хочу быть фотографом и кликать шедевры 📸", callback_data="reason_📸")],
+        [InlineKeyboardButton(text="Условия работы — просто мечта 🤑", callback_data="reason_🤑")],
+        [InlineKeyboardButton(text="Комфортно добираться/рядом с домом 🏠", callback_data="reason_🏠")]
     ])
 
 def quest11_base_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Столько всего, ничего не понятно", callback_data="base_1")],
-        [InlineKeyboardButton(text="Очень удобно, все под рукой", callback_data="base_2")],
-        [InlineKeyboardButton(text="База это что?", callback_data="base_3")],
-        [InlineKeyboardButton(text="Еще не понял", callback_data="base_4")]
+        [InlineKeyboardButton(text="“Столько всего, но я в шоке 🤯”", callback_data="base_🤯")],
+        [InlineKeyboardButton(text="“Очень удобно, всё под рукой 👍”", callback_data="base_👍")],
+        [InlineKeyboardButton(text="“База? Это что, ютуб?”", callback_data="base_3")],
+        [InlineKeyboardButton(text="“Ещё не разобрал(а), где тут кнопка”", callback_data="base_4")]
     ])
 
 def quest11_sales_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Нет, я не собираюсь продавать", callback_data="sales_1")],
-        [InlineKeyboardButton(text="Конечно, нужно грамотно преподносить", callback_data="sales_2")]
+        [InlineKeyboardButton(text="Нет, я не собираюсь продавать 😇", callback_data="sales_😇")],
+        [InlineKeyboardButton(text="Конечно, чтобы грамотно преподносить товар 💼", callback_data="sales_💼")]
     ])
 
 def quest11_team_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Очень некомфортно", callback_data="team_1")],
-        [InlineKeyboardButton(text="Классная команда", callback_data="team_2")],
-        [InlineKeyboardButton(text="Я почти ни с кем не знаком", callback_data="team_3")]
+        [InlineKeyboardButton(text="“Очень некомфортно, я как интроверт в диком лесу” 🌲", callback_data="team_🌲")],
+        [InlineKeyboardButton(text="“Классная команда, заценила vibes” ✨", callback_data="team_✨")],
+        [InlineKeyboardButton(text="“Я почти ни с кем не знаком(а), но работаю над этим” 🤝", callback_data="team_🤝")]
     ])
 
 def quest11_uniform_keyboard():
