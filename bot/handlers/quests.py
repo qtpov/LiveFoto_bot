@@ -133,7 +133,18 @@ async def next_quest(callback: types.CallbackQuery, state: FSMContext):
         await globals()[f"quest_{next_quest_id}"](callback, state)
         await track_quest_time(callback.from_user.id, next_quest_id, is_start=True, state=state)
     else:
-        await callback.message.answer("Все квесты на сегодня выполнены! 🎉")
+        await callback.message.answer("🔥 Вау, ты прошёл все квесты! Смотри-ка, сколько у тебя ачивок — настоящий чемпион! 🏆🎉\n"
+                                      "Но расслабляться рано — впереди ещё МИНИ-ИГРЫ для прокачки и БАЗА ЗНАНИЙ для апгрейда навыков.\n"
+                                      "Жми, выбирай, прокачивайся дальше — приключения только начинаются! 🚀📸",
+                                      reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                                          [InlineKeyboardButton(text="👉 ПРОФИЛЬ",
+                                                                callback_data="profile")],
+                                          [InlineKeyboardButton(text="👉 МИНИ-ИГРЫ",
+                                                                callback_data="games")],
+                                          [InlineKeyboardButton(text="👉 БАЗА ЗНАНИЙ",
+                                                                callback_data="knowledge")]
+                                      ])
+                                      )
         await state.clear()
 
     await callback.answer()
@@ -220,7 +231,19 @@ async def start_quests_confirm(callback: types.CallbackQuery, state: FSMContext)
                 break
 
         if first_uncompleted_quest is None:
-            await callback.message.answer("Все квесты на сегодня выполнены! 🎉")
+            await callback.message.answer(
+                "🔥 Вау, ты прошёл все квесты! Смотри-ка, сколько у тебя ачивок — настоящий чемпион! 🏆🎉\n"
+                "Но расслабляться рано — впереди ещё МИНИ-ИГРЫ для прокачки и БАЗА ЗНАНИЙ для апгрейда навыков.\n"
+                "Жми, выбирай, прокачивайся дальше — приключения только начинаются! 🚀📸",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="👉 ПРОФИЛЬ",
+                                          callback_data="profile")],
+                    [InlineKeyboardButton(text="👉 МИНИ-ИГРЫ",
+                                          callback_data="games")],
+                    [InlineKeyboardButton(text="👉 БАЗА ЗНАНИЙ",
+                                          callback_data="knowledge")]
+                ])
+                )
             return
 
         # Начинаем первый невыполненный квест

@@ -84,7 +84,7 @@ async def finish_quest3(callback: types.CallbackQuery, state: FSMContext,
         )
         user_result = user_result.scalars().first()
 
-        if not user_result:
+        if not user_result and  correct_count == total_questions:
             result = UserResult(
                 user_id=callback.from_user.id,
                 quest_id=quest_id,
@@ -92,36 +92,79 @@ async def finish_quest3(callback: types.CallbackQuery, state: FSMContext,
                 state="выполнен"
             )
             session.add(result)
+            await give_achievement(callback.from_user.id, quest_id, session)
+
+        elif not user_result and correct_count != total_questions:
+            result = UserResult(
+                user_id=callback.from_user.id,
+                quest_id=quest_id,
+                result=correct_count,
+                state="не выполнен"
+            )
+            session.add(result)
+
+        elif user_result and (correct_count != total_questions):
+            user_result.result = correct_count
+            user_result.state="не выполнен"
+
         else:
             user_result.result = correct_count
-            user_result.state="выполнен"
-
-        # Выдаем ачивку если все ответы верные
-        if correct_count == total_questions:
-            await give_achievement(callback.from_user.id, quest_id, session)
+            user_result.state = "выполнен"
 
         await session.commit()
 
+        # Проверяем, выполнено ли 100% квеста и выдаем ачивку, если это так
+        if correct_count == total_questions:
+            async with SessionLocal() as session:
+                achievement_given = await give_achievement(callback.from_user.id, quest_id, session)
+                if achievement_given:
+                    message_text = (
+                        f"📸Отлично! Ты справился на все {correct_count} из {total_questions}"
+                        f"— настоящий профи! Так держать, вперед к новым вершинам!🏆"
+                    )
+                else:
+                    message_text = f"Квест завершен! 🎉\nВерных ответов: {correct_count} из {total_questions}"
+        else:
+            message_text = (f"Не переживай, получилось {correct_count} из {total_questions} — просто"
+                            f" подтяни темы и попробуй ещё раз. Ты на верном пути, прокачка продолжается! 💪😉")
+
     # Сообщение пользователю
     await callback.message.answer(
-        f"Вы ответили правильно на {correct_count} из {total_questions} вопросов!",
+        message_text,
         reply_markup=get_quest_finish_keyboard(correct_count, total_questions, quest_id)
     )
     await track_quest_time(callback.from_user.id, quest_id, is_start=False, state=state)
     await state.clear()
 
 
+
+
 # Квест 27 - Правильное фото
 async def quest_27(callback: types.CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    current_question = user_data.get("current_question", 1)
-
 
     # Удаляем предыдущие сообщения
     try:
         await callback.message.delete()
     except Exception as e:
         logging.error(f"Error deleting message: {e}")
+
+
+    # Отправляем кнопку для продолжения
+    message = await callback.message.answer(
+        "*Квест 27. Лови момент!*\n\n"
+        "Что это у тебя? Камера? А я думала сова! Впереди три задания с фото, поэтому соберись! 💪📸\n"
+        "Посмотрим насколько хорошо ты уже разбираешься в фото!\n"
+        "Жми «Начать» и погнали!",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Начать", callback_data="start_quest27")]
+        ]), parse_mode="Markdown"
+    )
+
+
+@router.callback_query(F.data == "start_quest27")
+async def quest_27_start(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
 
     # Список фото для всех вопросов (должны быть заменены на реальные)
     questions = [
@@ -219,7 +262,7 @@ async def next_question_27(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(
         current_question=user_data.get("current_question", 1) + 1
     )
-    await quest_27(callback, state)
+    await quest_27_start(callback, state)
 
 
 # Квест 28 - Собери все
@@ -239,12 +282,12 @@ async def quest_28(callback: types.CallbackQuery, state: FSMContext):
     file_id = "BAACAgIAAxkBAAJdzmg4u2QBepBuTjMjZjCms6-gKrCMAAJRbwAC2TvISW9VtsU1OpZNNgQ"
 
     message = await callback.message.answer_video(video=file_id,
-        caption="⚡ Квест 28: Собери все\n\n"
-        "Твоя задача собрать 6 магнитов как можно быстрее,"
-        " при нажатии “СТАРТ” будет запущен таймер в боте. "
-        "Перед началом попроси коллегу записать тебя на видео так, "
-        "чтоб таймер из бота был в кадре видео. "
-        "Не забудь отработать движения!",
+        caption="⚡ Квест 28: Собери все!\n\n"
+        "Твоя задача — схватить 6 магнитов быстрее, чем твой сосед по смене скажет «Ого, как быстро!»\n\n"
+        "Нажимаешь «СТАРТ» — запускается таймер, а твой личный фансервис — коллега — снимает видео,"
+        " чтобы доказать, что ты не жульничаешь и реально двигаешься, а не прячешь магниты в рукав.\n\n"
+        "Так что вставай со стула, включай скорость и покажи этим магнитам, кто тут главный! 🏃‍♂️💨\n\n"
+        "Жми «СТАРТ» и пусть победит самый быстрый магнитохват! 🤪",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="СТАРТ", callback_data="start_quest28")]
         ])
@@ -272,7 +315,7 @@ async def start_quest28(callback: types.CallbackQuery, state: FSMContext):
     # Запускаем таймер с начальным значением 00:00:00
     start_time = datetime.datetime.now()
     timer_msg = await callback.message.answer(
-        "⏱️ Таймер запущен! Соберите 6 магнитов как можно быстрее.\n"
+        "⏳ Таймер запущен! Собирай 6 магнитов быстрее, чем твой сосед по смене дойдет до стенда. Не тормози! 🏃‍♂️💨\n"
         "Прошедшее время: 00:00:00",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="ФИНИШ", callback_data="finish_quest28")]
@@ -317,7 +360,7 @@ async def update_quest28_timer(bot, chat_id: int, message_id: int, state: FSMCon
         # Обновляем только если время изменилось
         if time_str != last_time_str:
             message_text = (
-                f"⏱️ Таймер запущен! Соберите 6 магнитов как можно быстрее.\n"
+                f"⏳ Таймер запущен! Собирай 6 магнитов быстрее, чем твой сосед по смене дойдет до стенда. Не тормози! 🏃‍♂️💨\n"
                 f"Прошедшее время: {time_str}"
             )
 
@@ -363,9 +406,8 @@ async def finish_quest28(callback: types.CallbackQuery, state: FSMContext):
 
     # Запрашиваем видео у пользователя
     await callback.message.answer(
-        f"✅ Отлично! Ваше время: {time_str}\n\n"
-        "Пожалуйста, отправьте видео с выполнением задания. "
-        "Убедитесь, что на видео виден процесс сборки и таймер из бота."
+        f"✅ Крутяк! Ваше время: {time_str}\n\n"
+        "Отправьте видео, где вы как профи собираете магниты и таймер из бота тоже в кадре — пусть все завидуют вашей скорости! 🎥⚡"
     )
 
     # Устанавливаем состояние ожидания видео
@@ -425,7 +467,7 @@ async def process_quest28_video(message: types.Message, state: FSMContext):
 
     # Сообщение пользователю
     await message.answer(
-        "🎥 Видео отправлено на модерацию. Вы получите уведомление, когда модератор проверит вашу работу.\n"
+        "🔥 Видос улетел на проверку! Теперь только chill и ждём, когда модератор скажет “Окей, ты в топе!” 😎📲\n"
     )
     await track_quest_time(message.from_user.id, 28, is_start=False, state=state)
     await state.clear()
@@ -447,12 +489,13 @@ async def quest_29(callback: types.CallbackQuery, state: FSMContext):
     ])
 
     msg = await callback.message.answer(
-        "Квест 29: Фотоохота\n\n"
-        "Твоя задача принести как можно больше фотографий за 15 минут.\n"
-        "Обрати внимание, что кадры должны быть интересными и разнообразными.\n"
-        "Если ты не успеешь вернуться и выгрузить фотографии за это время, задание будет провалено.\n"
-        "Будь уверен в себе и всё получится!",
-        reply_markup=keyboard
+        "*🎯 Квест 29: Фотоохота!*\n\n"
+        "Твой челлендж: за 15 минут собрать как можно больше 🔥 классных и разных фоток!\n"
+        "Но помни — количество без кайфа не катит, нужен и стиль, и настроение.\n\n"
+        "⏰ Таймер запущен, времени мало — не тормози!\n"
+        "Вернись вовремя и с зарядом классных снимков, чтобы пройти квест.\n\n"
+        "💪 Уверен в себе? Тогда хватай камеру и вперёд — фотоохота начинается!",
+        reply_markup=keyboard, parse_mode="Markdown"
     )
 
     await state.update_data(
@@ -734,7 +777,8 @@ async def handle_feedback_text(message: types.Message, state: FSMContext):
     )
 
     await message.answer(
-        "✅ Спасибо! Ваши фото и комментарии отправлены на проверку."
+        "Отлично! Твои фото и комментарии уже в деле — модераторы проверяют, чтобы убедиться, что ты настоящий фотоохотник! 📸👀\n"
+        "Жди результат и готовься к новым заданиям!"
     )
     await track_quest_time(message.from_user.id, 29, is_start=False, state=state)
     await state.clear()
@@ -909,7 +953,8 @@ async def next_step_30(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.delete()
         # Создаем новое сообщение с запросом фото
         msg = await callback.message.answer(
-            'Пожалуйста, отправьте фотографии проданных работ (необходимо отправить хотя бы одно фото):',
+            '📸 Эй, не тяни! Скинь фотку хотя бы одной проданной работы — иначе как докажешь, что ты не просто щёлкал воздух? 😉\n'
+            'Жду топовые кадры, покажи, что ты в деле! 🔥',
             reply_markup=None
         )
         await state.update_data(photo_request_msg_id=msg.message_id)
@@ -1074,7 +1119,9 @@ async def quest_31(callback: types.CallbackQuery, state: FSMContext):
 
     # Кнопка "Далее" после видео
     msg = await callback.message.answer(
-        "Лекция о ценности кадра завершена",
+        "🔥 Лекция о том, почему кадр — это не просто фотка, а настоящая магия!\n"
+        "Не пропусти, это реально прокачает твой скилл!\n"
+        "Врубай просмотр, а затем жми «Далее» и увидишь, что тебя ждет ! 📸✨",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Далее", callback_data="start_quiz_31")]
         ])
@@ -1102,7 +1149,9 @@ async def start_quiz_31(callback: types.CallbackQuery, state: FSMContext):
 
     # Начинаем тест
     await callback.message.answer(
-        "Предлагаю пройти небольшой тест по просмотренной лекции, за что будешь щедро вознагражден баллами.",
+        "🎉 Готов прокачать мозг и заработать баллы, а не только лайки?\n"
+        "Закинь пару правильных ответов в тесте по лекции — и твоя статистика засияет ярче фоток на Инсте! 📸🚀\n"
+        "Давай, не тормози, баллы сами себя не заработают!",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Начать тест", callback_data="next_question_31")]
         ])
@@ -1242,14 +1291,15 @@ async def handle_quest31_answer(callback: types.CallbackQuery, state: FSMContext
 
         if is_completed:
             await callback.message.answer(
-                "Ты отлично разбираешься в ценности кадра!",
+                'Крутяк! Ты реально шаришь в ценности кадра! Жми "Далее" — там уже кто-то за тобой подсматривает, не заставляй ждать! 🚀📸',
                 reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 31)
             )
             await track_quest_time(callback.from_user.id, 31, is_start=False, state=state)
 
         else:
             await callback.message.answer(
-                f"Тебе стоит поработать над пониманием ценности кадра ({correct_answers}/{total_questions} верных ответов)",
+                f"Ой, похоже, пока не всё прокачано по теме кадра! 😅\n"
+                f"Но ничего, это как первая фотка — можно переделать и сделать ещё круче! Жми 'Повторить' и вперёд к победе! 💪📷",
                 reply_markup=get_quest_finish_keyboard(correct_answers, total_questions, 31)
             )
             await track_quest_time(callback.from_user.id, 31, is_start=False, state=state)
@@ -1557,16 +1607,17 @@ async def quest_33(callback: types.CallbackQuery, state: FSMContext):
         pass
 
     msg = await callback.message.answer(
-        "Квест 33: Продажи фотографий\n\n"
-        "Необходимо сделать 3 полных процесса от фотографирования клиента до продажи фото.\n\n"
-        "Процесс:\n"
-        "1. Сфотографируйте клиента\n"
-        "2. Предложите фото на продажу\n"
-        "3. Загрузите чек при успешной продаже\n\n"
-        "После 3 успешных продаж задание будет завершено.",
+        "🚀 *Квест 33: Продажи фотографий!*\n\n"
+        "Твоя миссия: провести 3 полных круга — от щёлканья до продажи!\n\n"
+        "Что нужно сделать:\n"
+        "1️⃣ Сфоткай клиента так, чтобы он сказал «Вау!»\n"
+        "2️⃣ Предложи фотки на продажу — покажи им их кайф\n"
+        "3️⃣ Если продал — загрузить чек (да, это важно!)\n\n"
+        "💪 Как сделаешь 3 успешных продажи — квест закроется!\n"
+        "Готов прокачать навыки? Тогда вперёд, фото-мастер! 📸🔥",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="СТАРТ", callback_data="start_sales_quest_33")]
-        ]))
+        ]), parse_mode='Markdown')
 
     await state.update_data(
         successful_sales=0,
@@ -1911,7 +1962,7 @@ async def finish_sales_quest_33(message: types.Message, state: FSMContext):
 
     await message.answer(
         "🎉 Ты отлично справился! У тебя хорошие навыки продаж!\n"
-        "Задание завершено."
+        "Задание завершено.Но еще нужно подождать, что скажут свыше!"
     )
     await track_quest_time(message.from_user.id, 33, is_start=False, state=state)
     await state.clear()
@@ -2078,9 +2129,13 @@ async def handle_feedback_answer(callback: types.CallbackQuery, state: FSMContex
     answers = user_data.get("answers", {})
     answers[current_q] = user_data["questions"][current_q]["options"][answer_idx]
 
-    await state.update_data(answers=answers)
-    await callback.message.delete()
+    # Удаляем предыдущий вопрос
+    try:
+        await callback.bot.delete_message(callback.message.chat.id, callback.message.message_id)
+    except Exception as e:
+        logging.error(f"Error deleting message: {e}")
 
+    await state.update_data(answers=answers)
     await ask_next_question(callback, state, current_q + 1)
     await callback.answer()
 
@@ -2090,16 +2145,27 @@ async def handle_feedback_text(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     current_q = user_data["current_question"]
 
-    # Check if we're expecting text input for this question
+    # Проверяем, ожидается ли текстовый ответ
     if user_data["questions"][current_q]["type"] == "text":
         answers = user_data.get("answers", {})
         answers[current_q] = message.text
         await state.update_data(answers=answers)
-        await message.delete()
+
+        # Удаляем сообщение пользователя и предыдущий вопрос
+        try:
+            await message.delete()
+            if "message_id" in user_data:
+                await message.bot.delete_message(message.chat.id, user_data["message_id"])
+        except Exception as e:
+            logging.error(f"Error deleting messages: {e}")
 
         await ask_next_question(message, state, current_q + 1)
     else:
         await message.answer("Пожалуйста, выберите один из предложенных вариантов.")
+        try:
+            await message.delete()
+        except:
+            pass
 
 
 async def ask_next_question(source: Union[types.CallbackQuery, types.Message], state: FSMContext, next_q: int):
@@ -2117,13 +2183,13 @@ async def ask_next_question(source: Union[types.CallbackQuery, types.Message], s
         else:
             reply_markup = None
 
-        # Handle both CallbackQuery and Message sources
+        # Отправляем новый вопрос
         if isinstance(source, types.CallbackQuery):
             msg = await source.message.answer(
                 question["text"],
                 reply_markup=reply_markup
             )
-        else:  # It's a Message
+        else:  # Message
             msg = await source.answer(
                 question["text"],
                 reply_markup=reply_markup

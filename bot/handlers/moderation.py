@@ -174,6 +174,10 @@ def get_quest_finish_keyboard(correct_count, total_questions, current_quest_id):
             text="Далее",
             callback_data=f"next_quest_{current_quest_id}"
         ))
+        builder.add(types.InlineKeyboardButton(
+            text="Профиль",
+            callback_data=f"profile"
+        ))
     return builder.as_markup()
 
 # Функция для выдачи ачивки
