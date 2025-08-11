@@ -76,6 +76,10 @@ def go_quests_keyboard():
         [InlineKeyboardButton(text="Профиль", callback_data="profile")]
     ])
 
+def next_step_keyboard1():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Далее ➡️", callback_data="start_quest_1")]
+    ])
 
 def quest1_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -256,7 +260,7 @@ def quest7_finish_keyboard():
 
 def quest8_konspekt_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📝 Конспек", callback_data="quest8_text")]
+        [InlineKeyboardButton(text="📝 Конспект", callback_data="quest8_text")]
     ])
 
 def quest8_start_keyboard():

@@ -6,7 +6,7 @@ from aiogram.types import BotCommand
 from .configurate import settings
 
 from .handlers import commands, profile, achievements, moderation, quests, games, quiz_game, own_game, knowledge_test, knowledge_base, registration, admin_panel,quests_day2, quests_day3
-#from .utils import analytics
+
 from .db.init_db import init_db
 
 

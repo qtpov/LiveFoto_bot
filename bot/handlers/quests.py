@@ -244,6 +244,7 @@ async def start_quests_confirm(callback: types.CallbackQuery, state: FSMContext)
                                           callback_data="knowledge")]
                 ])
                 )
+            await callback.answer()
             return
 
         # Начинаем первый невыполненный квест
@@ -251,7 +252,20 @@ async def start_quests_confirm(callback: types.CallbackQuery, state: FSMContext)
     await callback.answer()
 
 # Квест 1
+
 async def quest_1(callback: types.CallbackQuery, state: FSMContext):
+    photo_path = BASE_DIR / "handlers/media/photo/map1.jpg"
+    if not photo_path.exists():
+        await callback.message.answer("Файл с изображением не найден.")
+        return
+
+    photo = FSInputFile(str(photo_path))
+    await callback.message.answer_photo(photo,caption='🎮 Квест 1: Вопрос 1\n\nПеред тобой карта парка.'
+                                                      '\nВозьми своего наставника или коллегу и пройдись по локации, узнай где находятся.'
+                                        ,reply_markup=next_step_keyboard1())
+
+@router.callback_query(F.data == "start_quest_1")
+async def start_quest_1(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     current_question = user_data.get("current_question", 1)
 
@@ -282,6 +296,8 @@ async def quest_1(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(photo_message_id=message.message_id)
 
     await callback.answer()
+
+
 
 # Квест 2 - Добавлены уникальные описания
 quest2_descriptions = {
@@ -396,23 +412,23 @@ async def quest_3(callback: types.CallbackQuery, state: FSMContext):
     video_steps = [
         {
             "file_id": "BAACAgIAAxkBAAIQbGfZ6i6PSqfFkwEviKkeTzjSIq07AAIcdQACA47RSsKNwE8ZB6jMNgQ",
-            "description": "🔧 Этап 1: Сборка техники\nТут всё начинается. Камера, вспышка и немного магии ✨"
+            "description": "🔧 Этап 1: Сборка техники\nТут всё начинается. Камера, вспышка и немного магии ✨\nПосмотри, как собрать сетап техники без паники и жми «далее»."
         },
         {
             "file_id": "BAACAgIAAxkBAAIQb2fZ7BlHovx8Xp1lXQULoPC9TQodAAIqdQACA47RStHyr_i86-BDNgQ",
-            "description": "📸 Этап 2: Фотографирование\nПогнали по локации! Как снять крутой кадр и не потерять свет 🙌"
+            "description": "📸 Этап 2: Фотографирование\nПогнали по локации! Как снять крутой кадр и не потерять свет 🙌\nВрубай видос и лови вайб. Только потом переходи дальше!"
         },
         {
             "file_id": "BAACAgIAAxkBAAIQcWfZ7JauvtWMaVmGZURQAzGYZKcgAAItdQACA47RSmhTstArUV9lNgQ",
-            "description": "🛠 Этап 3: Ретушь\nОбработка —  где магия превращается в вау. Как навести красоту в пару кликов? 💻🎨"
+            "description": "🛠 Этап 3: Ретушь\nОбработка —  где магия превращается в вау. Как навести красоту в пару кликов? Смотри и учись 💻🎨"
         },
         {
             "file_id": "BAACAgIAAxkBAAIQc2fZ7KUbwPbvvLzZkvlXEpkreZBEAAIudQACA47RSlZ0vju21gr_NgQ",
-            "description": "🖨 Этап 4: Печать\nХоп — и уже в руках! Как превратить пиксели в реальность 📷📄"
+            "description": "🖨 Этап 4: Печать\nХоп — и уже в руках! Как превратить пиксели в реальность 📷📄\nВидеогайд на 1 минуту, но инфа-сотка 🔥"
         },
         {
             "file_id": "BAACAgIAAxkBAAIQdWfZ7_pGQdK3VOE928wyF3OS2NOLAAI2dQACA47RSpceq4CXeMQSNgQ",
-            "description": "⭐ Этап 5: Презентация\nКак красиво отдать готовую работу и не стушеваться 💁"
+            "description": "⭐ Этап 5: Презентация\nКак красиво отдать готовую работу и не стушеваться 💁\nБыстро, уверенно и по красоте."
         }
     ]
 
@@ -458,12 +474,12 @@ async def show_next_video_step(callback: types.CallbackQuery, state: FSMContext)
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="Далее →", callback_data="next_video_step")]
             ])
-            action_text = "\nНажмите 'Далее' для продолжения"
+            action_text = "\nНажми 'Далее' для продолжения"
         else:
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="Приступить к тесту", callback_data="start_quest3_test")]
             ])
-            action_text = "\nКвест 3. Запомни правильный порядок действий, нажми 'Приступить к тесту', когда будешь готовы"
+            action_text = "\n\n🎯 Квест 3:\nВсё схватил(а)? Тогда давай пройдемся по порядку!\nГотов(а)? Жми:"
 
 
         # Отправляем сообщение с кнопкой
@@ -484,6 +500,7 @@ async def show_next_video_step(callback: types.CallbackQuery, state: FSMContext)
 
 @router.callback_query(F.data == "next_video_step")
 async def handle_next_video_step(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.delete()
     await show_next_video_step(callback, state)
     await callback.answer()
 
@@ -1226,10 +1243,10 @@ A4 — это формат «вау», который в альбом не пр�
             "options": ["2500","2100","2200","2400"],
             "correct": "2200",
             "description0": '''❌ Нет-нет!
-Этот коллаж — альтернатива альбому, стоит ровно 2100 руб.
+Этот коллаж — альтернатива альбому, стоит ровно 2200 руб.
 Вперёд, к вопросу 5!''',
             "description1": '''✅ Верно! В яблочко!
-Фото-коллаж A4 в рамке — 2100 ₽. Коллекция лучших моментов в стиле гика.'''
+Фото-коллаж A4 в рамке — 2200 ₽. Коллекция лучших моментов в стиле гика.'''
         },
         5: {
             "name": "Фото в электронном виде",
@@ -2171,7 +2188,7 @@ async def handle_quest1_answer(callback: types.CallbackQuery, state: FSMContext)
         await finish_quest(callback, state, correct_count, len(correct_answers), current_quest_id)
     else:
         await state.update_data(current_question=current_question)
-        await quest_1(callback, state)
+        await start_quest_1(callback, state)
 
     await callback.answer()
 
@@ -3064,8 +3081,8 @@ async def finish_quest11(callback: types.CallbackQuery, state: FSMContext):
 """🚀 Спасибо за фидбек!
 
 Ты помог(ла) нам стать лучше. За твою откровенность уже летит ачивка в профиль! 🎖
-Вместе создаём идеальную фотокоманду!
-
+Вместе создаём идеальную фотокоманду!""")
+    await callback.message.answer("""
 🎉 Отличная работа в День 1! 🎉
 Ты:
     - Ознакомился(лась) с приложением и прокачал(а) навигацию

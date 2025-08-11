@@ -1,7 +1,10 @@
 from aiogram import Router, types, F
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import  FSInputFile
+from aiogram.utils.media_group import MediaGroupBuilder,InputMediaPhoto
 from aiogram.fsm.context import FSMContext
 from bot.keyboards.inline import knowledge_keyboard, knowledge_theme_keyboard
+from bot.handlers.quests import BASE_DIR
 
 router = Router()
 
@@ -15,13 +18,338 @@ async def send_knowledge_list(callback: types.CallbackQuery):
     await callback.answer()
 
 
+PRODUCT_GROUPS = {
+    "magnets": {
+        "name": "📦 Шаг 1/9 — Магниты и брелки\n"
+                "Никакой бабушкин холодильник без фотомагнита не обходится!\n"
+                "Брелок на память — must-have.\n"
+                "Цена? Лайтовая. Погнали дальше!",
+        "items": [
+            {
+                "name": "Магнит 100*100",
+                "price": "500 руб.",
+                "photo": "products/magnets/magnet_100x100.jpg"
+            },
+            {
+                "name": "Магнит А6",
+                "price": "900 руб.",
+                "photo": "products/magnets/magnet_a6.jpg"
+            },
+            {
+                "name": "Брелоки 56*40",
+                "price": "400 руб.",
+                "photo": "products/magnets/brelok.jpg"
+            }
+        ]
+    },
+    "photos": {
+        "name": "📸 Шаг 2/9 — Фотопечать\n"
+                "A6, A5, A4 — выбирай под вайб и кошелёк.\n"
+                "На стену, в рамку, в альбом — всё в твоих руках.",
+        "items": [
+            {
+                "name": "Фото А4",
+                "price": "700 руб.",
+                "photo": "products/photos/photo_a4.jpg"
+            }
+        ]
+    },
+    "photos_frame": {
+        "name": "🖼 Шаг 3/9 — Фото в рамке\n"
+                "Подарок маме, бабушке или себе любимому? ✔\n"
+                "Красиво стоит, дорого выглядит.",
+        "items": [
+            {
+                "name": "Фото А4 в рамке",
+                "price": "2000 руб.",
+                "photo": "products/photos_frame/photo_frame.jpg"
+            }
+
+        ]
+
+    },
+    "collage": {
+        "name": "🧩 Шаг 4/9 — Коллажи\n"
+                "Фоточка одна — это скучно. А вот коллаж из лучших моментов — 🔥\n"
+                "Больше лиц, больше любви.",
+        "items": [
+            {
+                "name": "Коллаж А4 ",
+                "price": "2000 руб.",
+                "photo": "products/collage/collage_a4.jpg",
+                "description": "Магнит 100×100 — 500 ₽, идеал на холодильник не может быть бесплатным!\n"
+                               "Подгоняй дальше, ты почти Разрушитель Прайс-листов 💥 "
+            },
+            {
+                "name": "Коллаж А4 в рамке",
+                "price": "1200 руб.",
+                "photo": "products/collage/collage_a4_frame.jpg",
+                "description": "Фото A4 — 700 ₽. Большой формат для больших эмоций! "
+            },
+            {
+                "name": "Коллаж А5 ",
+                "price": "1100 руб.",
+                "photo": "products/collage/collage_a5.jpg",
+                "description": " "
+            },
+            {
+                "name": "Коллаж А5 в рамке",
+                "price": "1100 руб.",
+                "photo": "products/collage/collage_a5_frame.jpg",
+                "description": " "
+            }
+        ]
+
+    },
+    "budka": {
+        "name": "📷 Шаг 5/9 — Фотобудка\n"
+                "Три кадра, один смех, и воспоминания на века\n"
+                "Идеально для друзей, пар и “мы просто коллеги”.",
+        "items": [
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/budka/1.jpg"
+            }
+        ]
+
+    },
+    "suvenir": {
+        "name": "🎁 Шаг 6/9 — Сувениры\n"
+                "Кружка, что греет душу. Левитирующая рамка — вау-эффект 100%\n"
+                "Хотел? Теперь знаешь, где взять.",
+        "items": [
+            {
+                "name": "Кружка",
+                "price": "2000 руб.",
+                "photo": "products/suvenir/cup.jpg",
+                "description": " "
+            },
+            {
+                "name": "Рамка",
+                "price": "5000 руб.",
+                "photo": "products/suvenir/frame_fly.jpg",
+                "description": " "
+            },
+            {
+                "name": "Стикер",
+                "price": "1100 руб.",
+                "photo": "products/suvenir/sticker.jpg",
+                "description": " "
+            },
+            {
+                "name": "Брелок",
+                "price": "1100 руб.",
+                "photo": "products/suvenir/ny_circle.jpg",
+                "description": " "
+            },
+            {
+                "name": "Значек",
+                "price": "1100 руб.",
+                "photo": "products/suvenir/znak.jpg",
+                "description": " "
+            }
+        ]
+
+    },
+    "calendar": {
+        "name": "🗓 Шаг 7/9 — Календари\n"
+                "Каждый день — с твоим лицом 😎\n"
+                "Есть даже в рамке, чтобы как у продюсера в офисе.",
+        "items": [
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/calendar/a4.jpg"
+            },
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/calendar/a4_frame.jpg"
+            }
+        ]
+
+    },
+    "print": {
+        "name": "💾 Шаг 8/9 — Печать с носителя\n"
+                "Принёс с флешки — получил фото.\n"
+                "Всё просто. Даже дед поймёт.",
+        "items": [
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/1.jpg"
+            },
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/2.jpg"
+            },
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/3.jpg"
+            },
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/4.jpg"
+            },
+            {
+                "name": "услуга ",
+                "price": "2000 руб.",
+                "photo": "products/print/5.jpg"
+            }
+        ]
+
+    },
+    "services": {
+        "name": "📲 Шаг 9/9 — Доп. услуги\n"
+                "Видео, фотопрогулки, электронка — как хочешь, так и забирай.\n"
+                "Контент — это валюта, помни об этом 💸\n"
+                "Готов к проверке? Не переживай, помощь будет 😎",
+        "items": [
+            {
+                "name": "Фото эл ",
+                "price": "2000 руб.",
+                "photo": "products/services/el.jpg"
+            },
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/services/video.jpg"
+            },
+            {
+                "name": "Фото ",
+                "price": "2000 руб.",
+                "photo": "products/services/photo.jpg"
+            }
+        ]
+
+    },
+}
+
+# Раздельные клавиатуры для разных этапов
+def quest_view_next_keyboard():
+    """Клавиатура для этапа ознакомления"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Далее", callback_data="next_product")]
+    ])
+
+
 @router.callback_query(F.data.startswith("zn_1"))
-async def proces_knowledge(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        'пока пусто',
-        reply_markup=knowledge_theme_keyboard()
-    )
+async def start_quest_7(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", 1)
+    correct_count = user_data.get("correct_count", 0)
+
+    # Удаляем предыдущие сообщения
+    try:
+        await callback.message.delete()
+        if "photo_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["photo_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    # Проверяем, в каком режиме находимся (просмотр товаров или тест)
+    if not user_data.get("test_mode", False):
+        """Начало квеста - показ товаров по группам"""
+        await state.update_data(
+            current_group=0,
+            test_mode=False
+        )
+        await show_product(callback, state)
+    else:
+        """Продолжение тестовой части"""
+        await ask_test_question(callback, state)
+
     await callback.answer()
+
+
+async def show_product(callback: types.CallbackQuery, state: FSMContext):
+    """Показывает одну группу товаров"""
+    user_data = await state.get_data()
+    group_keys = list(PRODUCT_GROUPS.keys())
+    current_idx = user_data.get("current_group", 0)
+
+    # Удаляем предыдущие сообщения
+    try:
+        if "media_group_ids" in user_data:
+            for msg_id in user_data["media_group_ids"]:
+                await callback.bot.delete_message(callback.message.chat.id, msg_id)
+        if "control_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["control_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении: {e}")
+
+    # Если это последняя группа и мы возвращаемся назад
+    if current_idx >= len(group_keys):
+        await callback.message.edit_text(
+            'Выберите тему из кнопок внизу',
+            reply_markup=knowledge_keyboard()
+        )
+        await state.update_data(
+            media_group_ids=[],
+            control_message_id=None
+        )
+        return
+
+    group = PRODUCT_GROUPS[group_keys[current_idx]]
+
+    # Создаем медиагруппу
+    album_builder = MediaGroupBuilder(
+        caption=f"{group['name']}"
+    )
+
+    for item in group["items"]:
+        photo_path = BASE_DIR / f"handlers/media/photo/{item['photo']}"
+        if photo_path.exists():
+            album_builder.add_photo(
+                media=FSInputFile(str(photo_path))
+            )
+
+    # Отправляем группу товаров
+    sent_messages = await callback.message.answer_media_group(media=album_builder.build())
+
+    # Кнопка для продолжения
+    is_last_group = current_idx == len(group_keys) - 1
+    button_text = "Назад" if is_last_group else "➡️ Дальше"
+    callback_data = "knowledge" if is_last_group else "next_product"
+
+    control_message = await callback.message.answer(
+        f"Шаг {current_idx + 1}/{len(group_keys)}",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=button_text, callback_data=callback_data)]]
+        ))
+
+    await state.update_data(
+        media_group_ids=[m.message_id for m in sent_messages],
+        control_message_id=control_message.message_id,
+        current_group=current_idx  # Сохраняем текущий индекс
+    )
+
+@router.callback_query(F.data == "next_product")
+async def next_product(callback: types.CallbackQuery, state: FSMContext):
+    """Показывает следующую группу товаров"""
+    # Удаляем предыдущие сообщения
+    user_data = await state.get_data()
+    try:
+        if "media_group_ids" in user_data:
+            for msg_id in user_data["media_group_ids"]:
+                await callback.bot.delete_message(callback.message.chat.id, msg_id)
+        if "control_message_id" in user_data:
+            await callback.bot.delete_message(callback.message.chat.id, user_data["control_message_id"])
+    except Exception as e:
+        print(f"Ошибка при удалении сообщений: {e}")
+
+    #await callback.message.delete()
+
+    user_data = await state.get_data()
+    current_idx = user_data.get("current_group", 0) + 1
+    await state.update_data(current_group=current_idx)
+    await show_product(callback, state)
+    await callback.answer()
+
 
 
 @router.callback_query(F.data.startswith("zn_2"))
