@@ -2547,9 +2547,9 @@ async def show_quest10_step(callback: types.CallbackQuery, state: FSMContext, st
 
     photo_dir = BASE_DIR / f"handlers/media/photo/appearance/{gender_folder}/{step_folders[step]}"
 
-    # Получаем список фото и перемешиваем
+    # Получаем список фото и сортируем по имени
     try:
-        photo_paths = list(photo_dir.glob("*.png"))
+        photo_paths = sorted(photo_dir.glob("*.png"), key=lambda x: x.name)  # ← Вот это исправление!
 
         if not photo_paths:
             await callback.message.answer("Изображения для этого этапа не найдены.")
